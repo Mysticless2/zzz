@@ -201,6 +201,94 @@ local effects = {
 		local cf = getFrontPos(6) * CFrame.new(0, -3, 0)
 		effectRemote:FireServer("test_FloatingRocks", cf)
 	end},
+
+	{name = "Whirlwind", desc = "Whirlwind effect", color = Color3.new(0.8, 1, 0.8), func = function()
+		effectRemote:FireServer("test_Whirlwind", root)
+	end},
+
+	{name = "GroundImpact", desc = "Ground smash effect", color = Color3.new(0.6, 0.4, 0.2), func = function()
+		effectRemote:FireServer("test_GroundImpact", root, 5)
+	end},
+
+	{name = "LightFastImpact", desc = "Light fast impact", color = Color3.new(1, 1, 0.8), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_LightFastImpact", cf, 10)
+	end},
+
+	{name = "Ball4", desc = "Orange ball trail", color = Color3.new(1, 0.6, 0.2), func = function()
+		local pos = root.Position
+		local target = (root.CFrame * CFrame.new(0, 0, -20)).p
+		effectRemote:FireServer("test_Ball4", pos, target, true)
+	end},
+
+	{name = "away", desc = "Away knockback anim", color = Color3.new(1, 0.5, 0.5), func = function()
+		effectRemote:FireServer("test_away", root, root)
+	end},
+
+	{name = "downer", desc = "Downward smash", color = Color3.new(0.5, 0.5, 1), func = function()
+		effectRemote:FireServer("test_downer", root, root)
+	end},
+
+	{name = "Soru", desc = "Soru dash effect", color = Color3.new(0.9, 0.9, 1), func = function()
+		effectRemote:FireServer("test_Soru", root)
+	end},
+
+	{name = "Debris", desc = "Ground debris", color = Color3.new(0.5, 0.5, 0.5), func = function()
+		local pos = root.Position + root.CFrame.LookVector * 6
+		effectRemote:FireServer("test_Debris", pos, root, 5)
+	end},
+
+	{name = "bodyflicker", desc = "Body flicker teleport", color = Color3.new(0.4, 0.4, 0.8), func = function()
+		local cf1 = root.CFrame
+		local cf2 = getFrontPos(15)
+		effectRemote:FireServer("test_bodyflicker", cf1, cf2, char)
+	end},
+
+	{name = "xplode", desc = "Explosion ring", color = Color3.new(1, 0.8, 0.4), func = function()
+		local cf = getFrontPos(6)
+		local sf = Vector3.new(0, 1, 0)
+		effectRemote:FireServer("test_xplode", root, sf, cf.p)
+	end},
+
+	{name = "SandPath", desc = "Sand trail effect", color = Color3.new(0.9, 0.8, 0.5), func = function()
+		effectRemote:FireServer("test_SandPath", char)
+	end},
+
+	{name = "IceSlide", desc = "Ice slide trail", color = Color3.new(0.7, 0.9, 1), func = function()
+		effectRemote:FireServer("test_IceSlide", char)
+	end},
+
+	{name = "WaterSlide", desc = "Water slide trail", color = Color3.new(0.4, 0.7, 1), func = function()
+		effectRemote:FireServer("test_WaterSlide", char)
+	end},
+
+	{name = "GoldPath", desc = "Gold trail effect", color = Color3.new(1, 0.85, 0.2), func = function()
+		effectRemote:FireServer("test_GoldPath", char)
+	end},
+
+	{name = "Surfboard", desc = "Surfboard effect", color = Color3.new(0.3, 0.6, 0.9), func = function()
+		effectRemote:FireServer("test_Surfboard", char)
+	end},
+
+	{name = "Firesurf", desc = "Fire surf effect", color = Color3.new(1, 0.4, 0.1), func = function()
+		effectRemote:FireServer("test_Firesurf", char)
+	end},
+
+	{name = "LookAt", desc = "Camera look at", color = Color3.new(0.7, 0.7, 0.7), func = function()
+		effectRemote:FireServer("test_LookAt", root, 30)
+	end},
+
+	{name = "upanim", desc = "Up animation", color = Color3.new(0.8, 0.8, 1), func = function()
+		effectRemote:FireServer("test_upanim", nil, root)
+	end},
+
+	{name = "Hoppa", desc = "Hoppa wind effect", color = Color3.new(0.6, 1, 0.8), func = function()
+		effectRemote:FireServer("test_Hoppa", root)
+	end},
+
+	{name = "SphereShockwave2", desc = "Sphere wave 2", color = Color3.new(1, 0.5, 0.8), func = function()
+		effectRemote:FireServer("test_SphereShockwave2", root, 15, Color3.fromRGB(255, 130, 200), 3)
+	end},
 }
 
 -- Create buttons
