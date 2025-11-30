@@ -1,627 +1,869 @@
-	--                                                           --
-	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
-	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
-	--	|       |   |   |       |   ---|   -   |      <    ___|  --
-	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
-	--	                                                         --
-	--                      by Avallex                           --
-	
-	local Client = {}
-	 
-	--[[ GAME SERVICES ]]--
-	local Players = game:GetService('Players')
-	local ReplicatedStorage = game:GetService('ReplicatedStorage')
-	local UserInputService = game:GetService('UserInputService')
-	local Debris = game:GetService('Debris')
-	local TweenService = game:GetService('TweenService')
-	local RunService = game:GetService('RunService')
-	
-	--[[ NETWORK ]]--
-	local NetworkFolder = ReplicatedStorage:WaitForChild('firearmsNetwork')
-	local Modules = ReplicatedStorage:WaitForChild('firearmsModules')
-	local RE,RF = NetworkFolder:WaitForChild('RE'),NetworkFolder:WaitForChild('RF')
-	
-	--[[ MODULE VARIABLES ]]--
-	Client.FirearmFunctions = {}
-	Client.Tool = script.Parent.Parent
-	Client.Player = Players.LocalPlayer
-	Client.Character = Client.Player.Character
-	Client.Firingmode = 'AUTOMATIC'
-	Client.IgnoreModel = workspace:WaitForChild('IgnoreModel')
-	Client.Camera = workspace.CurrentCamera
-	Client.Mouse = Client.Player:GetMouse()
-	--
-	repeat wait() Client.Character = Client.Player.Character until (Client.Character and Client.Character.Parent == workspace) or Client.Player.Parent ~= Players
-	Client.Humanoid = Client.Character:WaitForChild('Humanoid',3)
-	--
-	repeat wait() until Client.Character.Parent == workspace or Client.Player.Parent ~= Players
-	if not Client.Humanoid then warn('Humanoid not found.') return; end
-	
-	--[[ FIREARM STATS ]]--
-	Client.firearmStats = require(Modules:WaitForChild('firearmStats'))[Client.Tool.Name]
-	Client.AnimationIds = Client.firearmStats['AnimationIds']
-	Client.Controls = Client.firearmStats['Controls']
-	
-	--[[ CLIENT SETUP ]]--
-	Client.Status = {
-		Equipped = false;
-		Patrolling = false;
-		Reloading = false;
-		mouseDown = false;
-		mouseRotate = true;
-		--
-		isFireable = true;
-		isShooting = false;
-		isJumping = false;
-		isWalking = false;
-		isRotating = false;
-		isZoomed = false;
-		isBoltAction = Client.firearmStats.Boltaction;
-		isOnMobile = UserInputService.TouchEnabled;
-		--
-		hasScope = Client.firearmStats.hasScope;
-		canFullauto = Client.firearmStats.Fullauto;
-		--
-		Ammunition = Client.firearmStats.MagCapacity;
-		maxAmmunition = Client.firearmStats.MaxAmmo;
-	}
+--[[
+Firearm Client Module
+Handles client-side weapon controls, animations, and rendering
+]]
 
-	Client.firearmStats.IgnoreList[#Client.firearmStats.IgnoreList+1] = Client.Character
-	
-	--[[ ANIMATION HANDLING ]]--
-	Client.AnimationTracks = {}
-	for animName,animId in pairs(Client.AnimationIds) do
-		local newAnimation = Instance.new('Animation',Client.Tool:WaitForChild('Handle'))
-		newAnimation.Name = animName
-		newAnimation.AnimationId = animId
-		Client.AnimationTracks[animName] = Client.Humanoid:LoadAnimation(newAnimation)
-	end
-	
-	--[[ AMMO CACHE HANDLING ]]--
-	local AmmoCaches = workspace:FindFirstChild('AmmoCaches')
-	if AmmoCaches then
-		for i,cachePart in pairs(AmmoCaches:GetChildren()) do
-			local cacheDebounce = false
-			cachePart.Touched:connect(function(hitPart)
-				pcall(function()
-					local player = Players:GetPlayerFromCharacter(hitPart.Parent) or Players:GetPlayerFromCharacter(hitPart.Parent.Parent)
-					if player and not cacheDebounce then
-						cacheDebounce = true
-						if Client.Status.Equipped then
-							if Client.Status.maxAmmunition < Client.firearmStats.MaxAmmo then
-								Client.Status.maxAmmunition = Client.firearmStats.MaxAmmo
-								if Client.GUI and Client.GUI:FindFirstChild('Ammo') then Client.GUI.Ammo.Text = Client.Status.Ammunition..'/'..Client.Status.maxAmmunition end
-								local newSound = cachePart.collectAmmo:Clone()
-								newSound.Parent = cachePart
-								newSound:Play()
-								newSound.Ended:connect(function() newSound:Destroy() end)
-							end
-						end
-						wait(.5)
-						cacheDebounce = false
-					end
-				end)
-				cacheDebounce = false
-			end)
-		end
-	end
-	
-	--[[ SCOPE CAMERA CFRAME CALCULATION ]]--
-	local function EulerAnglesYX(cameraCFrame)
-		local _,_,_,m00,m01,m02,m10,m11,m12,m20,m21,m22 = CFrame.new().components(cameraCFrame)
-		return math.abs(m12) > 0.99999 and -math.atan2(-m20,m00) or -math.atan2(-m02,m22),-math.asin(m12)
-	end
-	local newCFrameY,newCFrameX=EulerAnglesYX(Client.Camera.CFrame)
-	
-	
-	local zoomToggle = false
-	--[[ ZOOM IN ]]--
-	function zoomIn()
-		Client.Status.mouseRotate = false
-		if Client.GUI and Client.Status.hasScope then
-			if Client.GUI:FindFirstChild('Bar') then Client.GUI.Bar.Visible = false end
-			if Client.GUI:FindFirstChild('Reticle') then Client.GUI.Reticle.Visible = true end
-			if Client.GUI:FindFirstChild('Cursor') then Client.GUI.Cursor.Visible = false end
-			game:GetService('StarterGui'):SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
-			game:GetService('StarterGui'):SetCoreGuiEnabled(Enum.CoreGuiType.Health, true)
-		end
-		Client.Status.isZoomed = true
-		Client.Player.CameraMode = Enum.CameraMode.LockFirstPerson
-		Client.Camera.CameraSubject = Client.Tool.AimPart2
-		if Client.Status.hasScope then
-			for i=1,((70 - Client.firearmStats.targetFOV) / 5) do
-				Client.Camera.FieldOfView = Client.Camera.FieldOfView - 5
-				wait(0.01)
-			end
-		end
-	end
-	
-	--[[ ZOOM OUT ]]--
-	function zoomOut()
-		if Client.Status.hasScope then
-			for i=1,((70 - Client.firearmStats.targetFOV) / 5)/2 do
-				Client.Camera.FieldOfView = Client.Camera.FieldOfView + 5
-				wait(0.01)
-			end
-		end
-		Client.Camera.FieldOfView = 70
-		Client.Player.CameraMode = Enum.CameraMode.Classic
-		Client.Camera.CameraSubject = Client.Humanoid
-		Client.Status.mouseRotate = true
-		if Client.GUI and Client.Status.hasScope then
-			if Client.GUI:FindFirstChild('Bar') then Client.GUI.Bar.Visible = true end
-			if Client.GUI:FindFirstChild('Reticle') then Client.GUI.Reticle.Visible = false end
-			if Client.GUI:FindFirstChild('Cursor') then Client.GUI.Cursor.Visible = true end
-			game:GetService('StarterGui'):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
-		end
-		Client.Status.isZoomed = false
-		zoomToggle = false
-	end
-	
-	--[[ ZOOM TOGGLE ]]--
-	function toggleZoom()
-		if not zoomToggle then
-			zoomToggle = true
-			zoomIn()
-		else
-			zoomOut()
-			zoomToggle = false
-		end
-	end
-	
-	--[[ UPDATE ZOOM POSITION ]]--
-	coroutine.resume(coroutine.create(function()
-		while wait(.5) do
-			if not Client.Status.isZoomed then
-				newCFrameY,newCFrameX=EulerAnglesYX(Client.Camera.CFrame)
-			end
-		end
-	end))
-	
-	--[[ CLIENT EFFECTS ]]--
-	function newMagazine()
-		
-		--[[ BOLT FIXING ]]--
-		Client.Tool.BoltBack.Transparency = 0
-		Client.Tool.Bolt.Transparency = 1
-			
-		--[[ ANIMATION ]]--
-		Client.AnimationTracks['Reload']:Play()
-		
-		--[[ MAGAZINE CLONING ]]--
-		local oldMagazine = Client.Tool:FindFirstChild('Mag')
-		local newMagazine = oldMagazine:Clone()
-		wait(Client.firearmStats.Waittimes.MagazineRelease)
-		
-		--[[ REMOVING OLD WELDS ]]--
-		if oldMagazine:FindFirstChild('qCFrameWeldThingy') then oldMagazine:FindFirstChild('qCFrameWeldThingy'):Destroy() end
-		Client.Tool.Handle.MagOut:Play()
-		
-		--[[ RE-PARENTING OLD MAG ]]--
-		oldMagazine.Parent = Client.IgnoreModel
-		oldMagazine.CanCollide = true
-		Debris:AddItem(oldMagazine,1)
-		wait(Client.firearmStats.Waittimes.ReloadTime)
-		if not Client.Status.Equipped then
-			newMagazine.Parent = Client.Tool
-		else
-			--[[ PARENTING NEW MAG ]]--
-			newMagazine.Parent = Client.Tool
-			Client.Tool.Handle.MagIn:Play()
-			wait(Client.firearmStats.Waittimes.PrimeAfterReloadTime)
-		end
-	end
-	--
-	function roundFired()
-		
-		--[[ BOLT BACKWARDS ]]--
-		if Client.Status.isBoltAction then wait(.1) end
-		Client.Tool.BoltBack.Transparency = 0
-		Client.Tool.Bolt.Transparency = 1
-		
-		--[[ SHELL EJECTION ]]--
-		local shell = Instance.new("Part")
-		shell.Material = Enum.Material.Metal
-		shell.CFrame = Client.Tool.Chamber.CFrame * CFrame.fromEulerAnglesXYZ(1.5,0,0)
-		shell.Size = Vector3.new(1,1,1)
-		shell.Color = Color3.fromRGB(253, 139, 0)
-		shell.Parent = Client.IgnoreModel
-		shell.CFrame = Client.Tool.Chamber.CFrame
-		shell.CanCollide = false
-		shell.Transparency = 0
-		shell.Reflectance = 0.4
-		shell.BottomSurface = 0
-		shell.TopSurface = 0
-		shell.Name = "Shell"
-		shell.Velocity = Client.Tool.Chamber.CFrame.lookVector * 35 + Vector3.new(math.random(-5,5),20,math.random(-5,10))
-		shell.RotVelocity = Vector3.new(0,200,0)
-		local oldProperties = PhysicalProperties.new(shell.Material)
-		shell.CustomPhysicalProperties = PhysicalProperties.new(oldProperties.Density,oldProperties.Friction,0,oldProperties.FrictionWeight,0)
-		Debris:AddItem(shell, 1)
-	
-		local shellmesh = Instance.new("SpecialMesh")
-		shellmesh.Scale = Client.firearmStats.ShellSize
-		shellmesh.Parent = shell
-		wait(Client.firearmStats.Firerate)
-		
-		--[[ BOLT FORWARDS ]]--
-		if Client.Status.Ammunition > 0 then
-			if Client.Status.isBoltAction then wait(1) end
-			Client.Tool.BoltBack.Transparency = 1
-			Client.Tool.Bolt.Transparency = 0
-		end
-		
-	end
-	
-		
-	--[[ CURSOR UPDATE ]]--
-	function cursorUpdate()
-		if Client.Mouse.Target and Client.Mouse.Target.Parent:FindFirstChild('Humanoid') then
-			local Player = game:GetService('Players'):GetPlayerFromCharacter(Client.Mouse.Target.Parent)
-			if Player then
-				if Player.Team == Client.Player.Team then
-					Client.GUI.Cursor.ImageColor3 = Color3.fromRGB(0,200,0)
-				elseif Player.Team == 'Civilians' then
-					Client.GUI.Cursor.ImageColor3 = Color3.fromRGB(213,115,61)
-				else
-					Client.GUI.Cursor.ImageColor3 = Color3.fromRGB(200,0,0)
-				end
-			end
-		else
-			Client.GUI.Cursor.ImageColor3 = Color3.new(1,1,1)
-		end
-	end
-	
-	--[[ SETUP FUNCTIONS TO BE DISCONNECTED AFTER UNEQUIPPING ]]--
-	function bootFirearm()
-		
-		--[[ JUMP FUNCTION ]]--
-		Client.FirearmFunctions[#Client.FirearmFunctions+1] = Client.Humanoid.Jumping:connect(function()
-			Client.Status.isJumping = true
-			wait(.5)
-			Client.Status.isJumping = false
-		end)
-		
-		local goal = CFrame.new()
-		
-		--[[ RENDER STEPPED ]]--
-		Client.FirearmFunctions[#Client.FirearmFunctions+1] = RunService.RenderStepped:connect(function()
-			if Client.Status.Equipped then
-	
-				--[[ WALK & HOLD ANIMATION RUNNER ]]--
-				if Client.Humanoid.MoveDirection == Vector3.new(0,0,0) and not Client.Status.Patrolling and Client.Status.isWalking then
-					Client.AnimationTracks['Walk']:Stop()
-					Client.Status.isWalking = false
-				elseif Client.Status.isJumping then
-					Client.AnimationTracks['Walk']:Stop()
-					Client.Status.isWalking = false
-				elseif Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling and not Client.Status.isWalking and Client.Status.Equipped then
-					Client.AnimationTracks['Walk']:Play(.2)
-					Client.Status.isWalking = true
-				end
-				
-				--[[ CURSOR POS ]]--
-				if Client.GUI and Client.GUI:FindFirstChild('Cursor') then
-					Client.GUI.Cursor.Position = UDim2.new(0,Client.Mouse.X-(Client.GUI.Cursor.AbsoluteSize.X/2),0,Client.Mouse.Y-(Client.GUI.Cursor.AbsoluteSize.Y/2))
-					Client.Mouse.Icon = "http://www.roblox.com/asset/?id=131719387"
-					cursorUpdate()
-				end
-		
-				--[[ CHECK SPEED ]]--
-				if Client.Status.isWalking and not Client.Status.Patrolling then Client.Humanoid.WalkSpeed = 12 elseif not Client.Status.Patrolling then Client.Humanoid.WalkSpeed = 16 end
-				
-				--[[ ZOOM CAMERA ]]--
-				if Client.Mouse and Client.Status.isZoomed then
-					local currentCFrameY,currentCFrameX=EulerAnglesYX(Client.Camera.CFrame)
-					newCFrameY,newCFrameX=newCFrameY*(1-.15)+(currentCFrameY+(2*math.pi)*math.floor((newCFrameY-currentCFrameY)/(2*math.pi)+0.5))*.15,newCFrameX*(1-.15)+(currentCFrameX+(2*math.pi)*math.floor((newCFrameX-currentCFrameX)/(2*math.pi)+0.5))*.15
-					Client.Camera.CFrame=CFrame.Angles(0,newCFrameY,0)*CFrame.Angles(newCFrameX,0,0)*CFrame.new(0,0,0.5)+Client.Camera.Focus.p
-				end				
-				
-				local Part = Client.Character:FindFirstChild('HumanoidRootPart')
-				--[[ FACE MOUSE ]]--
-			    if Client.Mouse and Part and (Client.firearmStats.FollowCursor or Client.Status.isZoomed) then
-				    Client.Humanoid.AutoRotate = false
-				    local newTween = TweenService:Create(Part, TweenInfo.new(Client.firearmStats.Waittimes.cursorSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					      CFrame = CFrame.new(Part.Position, Client.Mouse.Hit.p * Vector3.new(1, 0, 1) + Part.Position * Vector3.new(0, 1, 0))
-				    })
-				    newTween:Play()
-			    else
-				    if not Client.firearmStats.FollowCursor and not Client.Status.isZoomed then
-					Client.Humanoid.AutoRotate = true
-				    else
-					-- MOBILE FACE TOUCH
-				    end
-				end
-			end
-		end)
-	end
-	
-	--[[ PATROL HANDLING ]]--
-	function lowerWeapon()
-		if not Client.Status.Patrolling then
-			Client.AnimationTracks['Hold']:Stop()
-			Client.AnimationTracks['Patrol']:Play()
-			Client.AnimationTracks['Walk']:Stop()
-			Client.Status.isWalking = false
-			Client.Status.Patrolling = true
-			Client.Humanoid.WalkSpeed = Client.firearmStats.Speeds.Runspeed
-		else
-			Client.AnimationTracks['Hold']:Play()
-			Client.AnimationTracks['Patrol']:Stop()
-			Client.Status.Patrolling = false
-			if Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling then
-				Client.AnimationTracks['Walk']:Play(.2)
-				Client.Status.isWalking = true
-			end
-		end
-	end	
-	
-	--[[ RELOAD HANDLING ]]--
-	function reloadWeapon()
-		
-		if (Client.Status.maxAmmunition - Client.firearmStats.MagCapacity) >= 0 then
-			
-			--[[ EXIT ZOOM ]]--
-			if Client.Status.isZoomed or zoomToggle then
-				zoomOut()
-			end
-			
-			--[[ RENAMING ]]--
-			Client.Status.Reloading = true
-			local prevName = Client.Tool.Name
-			Client.Tool.Name = '[REL]'
-			
-			--[[ CLIENT-SIDE MAGAZINE RENDERING ]]--
-			newMagazine()
-			
-			--[[ RENAMING AND SETTING AMMO VALUE ]]--
-			Client.Tool.Name = prevName
-			Client.Status.maxAmmunition = Client.Status.maxAmmunition - Client.firearmStats.MagCapacity
-			Client.Status.Ammunition = Client.firearmStats.MagCapacity
-			if Client.GUI and Client.GUI:FindFirstChild('Ammo') then Client.GUI.Ammo.Text = Client.Status.Ammunition..'/'..Client.Status.maxAmmunition end
-			
-			--[[ PUTTING BOLT FORWARDS ]]--
-			Client.Tool.BoltBack.Transparency = 1
-			Client.Tool.Bolt.Transparency = 0
-			if Client.Tool.Handle:FindFirstChild('Prime') then Client.Tool.Handle.Prime:Play() end
-			wait(Client.firearmStats.Waittimes.ReloadConstant)
-			Client.Status.Reloading = false
-		end
-			
-	end
-	
-	--[[ FIRE HANDLING ]]--
-	function fireWeapon()
-		if not Client.Status.isShooting and Client.Status.isFireable and Client.Status.Ammunition > 0 and not Client.Status.Patrolling and Client.Status.Equipped and not Client.Status.Reloading and Client.Humanoid.Health > 0 then
-			
-			--[[ BOLT ACTION SCOPE CHECK ]]--
-			if Client.Status.isBoltAction and Client.Status.isZoomed == false then return; end
-			
-			--[[ STATUS SET ]]--
-			Client.Status.isShooting = true
-			
-			--[[ AMMUNITION HANDLING ]]--
-			Client.Status.Ammunition = Client.Status.Ammunition - 1
-			if Client.GUI and Client.GUI:FindFirstChild('Ammo') then Client.GUI.Ammo.Text = Client.Status.Ammunition..'/'..Client.Status.maxAmmunition end
-			
-			--[[ FIRE HANDLING ]]--
-			local rayOrigin = Client.Tool:FindFirstChild('BarrelEnd')
-			local directionUnit = (Client.Mouse.Hit.p - rayOrigin.Position).unit
-			local trueAccuracy = (Client.Status.isZoomed and Client.Status.hasScope and (1-Client.firearmStats.Accuracy) * 100) or (Client.Status.hasScope and (1-(Client.firearmStats.Accuracy-0.01)) * 100) or ((1-Client.firearmStats.Accuracy) * 100)
-			
-			local accurateTarget = (Vector3.new(
-				directionUnit.X + (math.random(-trueAccuracy,trueAccuracy) / 100),
-				directionUnit.Y + (math.random(-trueAccuracy,trueAccuracy) / 100),
-				directionUnit.Z + (math.random(-trueAccuracy,trueAccuracy) / 100)
-			).unit) * Client.firearmStats.Range
-			
-			--[[ RAYCASTING ]]--
-			local hitRay = Ray.new(rayOrigin.Position,accurateTarget)
-			local hitpart, hitposition = workspace:FindPartOnRayWithIgnoreList(hitRay,Client.firearmStats.IgnoreList)
-			
-			--[[ CONFIRM HIT ]]--
-			local confirmHit = Ray.new(Client.Character.Head.Position,(hitposition-Client.Character.Head.Position))
-			local confirmHitpart, confirmhitPosition = workspace:FindPartOnRayWithIgnoreList(confirmHit,Client.firearmStats.IgnoreList)
-			--
-			local roundedOriginal = math.floor(confirmhitPosition.X)
-			local roundedConfirmation = math.floor(hitposition.X)
-			local confirmSight = (roundedOriginal == roundedConfirmation)
-			
-			if not confirmSight then
-				hitposition,hitpart = confirmhitPosition,confirmHitpart
-			end
-			
-			--[[ HITMARKER ]]--
-			spawn(function()
-				if hitpart and hitpart.Parent and hitpart.Parent:FindFirstChild('Humanoid') and Client.GUI and Client.GUI:FindFirstChild('Cursor') and Client.GUI:FindFirstChild('Reticle') then
-					Client.GUI.Cursor.Image = Client.firearmStats['Cursors'][1].Hit
-					Client.GUI.Reticle.Reticle.Image = Client.firearmStats['Reticles'][1].Hit
-					wait(Client.firearmStats.Waittimes.HitmarkerTime)
-					if Client.GUI and Client.GUI:FindFirstChild('Cursor') and Client.GUI:FindFirstChild('Reticle') then
-						Client.GUI.Cursor.Image = Client.firearmStats['Cursors'][1].Normal
-						Client.GUI.Reticle.Reticle.Image = Client.firearmStats['Reticles'][1].Normal
-					end
-				end
-			end)
-			
-			--[[ SERVER DETECTION AND RENDER ]]--
-			RE:FireServer('fireWeapon',Client.Character, hitpart, hitposition,(Client.Status.isBoltAction or false))
-			
-			--[[ CLIENT RENDER ]]--
-			Client.Player:WaitForChild('PlayerScripts').Renderer.Render:Fire('renderTrail',Client.Tool.Flame.Attachment,hitposition)
-			
-			--[[ ROUND FIRED EFFECTS ]]--
-			roundFired()
-			
-			wait(Client.firearmStats.Waittimes.FireConstant)
-			Client.Status.isShooting = false
-			return true
-		elseif Client.Status.isFireable == false then
-			return false
-		elseif Client.Status.Ammunition <= 0 and Client.Status.isOnMobile and not Client.Status.Reloading and Client.Status.Equipped then
-			if Client.Status.Patrolling then
-				Client.AnimationTracks['Hold']:Play()
-				Client.AnimationTracks['Patrol']:Stop()
-				Client.Status.Patrolling = false
-				if Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling then
-					Client.AnimationTracks['Walk']:Play(.2)
-					Client.Status.isWalking = true
-				end
-				reloadWeapon()
-			else
-				reloadWeapon()
-			end
-		elseif Client.Status.Ammunition <= 0 or Client.Status.Reloading then
-			Client.Tool.Handle.NoRound:Play()
-			return false
-		elseif Client.Status.Patrolling then
-			Client.AnimationTracks['Hold']:Play()
-			Client.AnimationTracks['Patrol']:Stop()
-			Client.Status.Patrolling = false
-			if Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling then
-				Client.AnimationTracks['Walk']:Play(.2)
-				Client.Status.isWalking = true
-			end
-			wait(.3)
-			return true
-		else
-			return false
-		end
-	end
-	
-	--[[ KEYBOARD INPUT HANDLING ]]--
-	function handleKeyInput(input)
-		local keyPressed = input.KeyCode
-		if keyPressed == Client.Controls.Reload and not Client.Status.Reloading and Client.Status.Equipped then
-			if Client.Status.Patrolling then
-				Client.AnimationTracks['Hold']:Play()
-				Client.AnimationTracks['Patrol']:Stop()
-				Client.Status.Patrolling = false
-				if Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling then
-					Client.AnimationTracks['Walk']:Play(.2)
-					Client.Status.isWalking = true
-				end
-				reloadWeapon()
-			else
-				reloadWeapon()
-			end
-		elseif keyPressed == Client.Controls.Patrol and not Client.Status.Reloading and Client.Status.Equipped then
-			lowerWeapon()
-		elseif keyPressed == Client.Controls.ChangeFiremode and Client.Status.Equipped then
-			if Client.Firingmode == 'AUTOMATIC' then Client.Firingmode = 'SEMI-AUTOMATIC' elseif Client.Status.canFullauto then Client.Firingmode = 'AUTOMATIC' end
-			--
-			if Client.GUI and Client.GUI:FindFirstChild('Mode') and Client.Firingmode == 'AUTOMATIC' then
-				Client.GUI.Mode.Text = 'AUTO'
-			elseif Client.GUI and Client.GUI.Mode then
-				Client.GUI.Mode.Text = 'SEMI'
-			end
-		elseif keyPressed == Client.Controls.ChangeReticle then
-			-- change reticle
-		end
-	end	
-	
-	--[[ FIRE INPUT REGISTERING ]]--
-	Client.Tool.Activated:connect(function()
-		Client.Status.mouseDown = true
-		--
-		if Client.Firingmode == 'AUTOMATIC' then
-			while Client.Status.mouseDown do
-				if not fireWeapon() then break end
-			end			
-		else
-			fireWeapon()
-		end
-		if Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling and Client.Status.Equipped and not Client.Status.isWalking then
-			Client.AnimationTracks['Walk']:Play(.2)
-			Client.Status.isWalking = true
-		end
-	end)
-	Client.Tool.Deactivated:connect(function()
-		Client.Status.mouseDown = false
-	end)
-	
-	--[[ NON-FIRE INPUT REGISTERING ]]--
-	local justClicked = false
-	UserInputService.InputBegan:connect(function(input,gameProcessedEvent)
-		if input.UserInputType == Enum.UserInputType.Keyboard and gameProcessedEvent == false then
-			handleKeyInput(input)
-		elseif not gameProcessedEvent and input.UserInputType == Enum.UserInputType.MouseButton2 and Client.Status.Equipped and not Client.Status.Patrolling and Client.Status.hasScope then
-			
-			--[[ DOUBLE CLICK TO ZOOM ]]--
-			coroutine.resume(coroutine.create(function()
-				if not justClicked then
-					justClicked = true
-					wait(1)
-					if justClicked == true then
-						justClicked = false
-					end
-				else
-					justClicked = false
-					toggleZoom()
-				end
-			end))
-		end
-	end)
-	
-	--[[ EQUIP HANDLING ]]--
-	Client.Tool.Equipped:connect(function(newMouse)
-		
-		--[[ GUI SETUP ]]--
-		if Client.Player.PlayerGui:FindFirstChild('firearmGUI') then Client.Player.PlayerGui.firearmGUI:Destroy() end
-		spawn(function()
-			Client.GUI = Modules.firearmGUI:Clone()
-			Client.GUI.Parent = Client.Player.PlayerGui
-			Client.GUI.RName.Text = Client.firearmStats['DisplayName']
-			Client.GUI.Ammo.Text = Client.Status.Ammunition..'/'..Client.Status.maxAmmunition
-			if not Client.Status.canFullauto then Client.Firingmode = 'SEMI-AUTOMATIC' end
-			if Client.GUI and Client.GUI.Mode and Client.Firingmode == 'AUTOMATIC' then
-				Client.GUI.Mode.Text = 'AUTO'
-			elseif Client.GUI and Client.GUI.Mode then
-				Client.GUI.Mode.Text = 'SEMI'
-			end
-			if Client.GUI:FindFirstChild('Reticle') then
-				Client.GUI.Reticle.Reticle.Image = Client.firearmStats['Reticles'][1].Normal
-			end
-		end)
-		
-		--[[ EQUIP FUNCTION ]]--
-		Client.AnimationTracks['Hold']:Play()
-		bootFirearm()
-		Client.Status.Equipped = true
-		Client.Mouse = newMouse
-		Client.Mouse.TargetFilter = Client.IgnoreModel
-		
-		--[[ ANIM FIX ]]--
-		if Client.Humanoid.MoveDirection ~= Vector3.new(0,0,0) and not Client.Status.Patrolling then
-			Client.AnimationTracks['Walk']:Play(.2)
-			Client.Status.isWalking = true
-		end
-		
-	end)
-	Client.Tool.Unequipped:connect(function()
-		
-		--[[ UNEQUIP FUNCTION ]]--
-		Client.Status.Equipped = false
-		Client.Humanoid.WalkSpeed = 16
-		Client.AnimationTracks['Hold']:Stop()
-		Client.AnimationTracks['Patrol']:Stop()
-		Client.AnimationTracks['Walk']:Stop()
-		Client.AnimationTracks['Reload']:Stop()
-		Client.Humanoid.AutoRotate = true
-		Client.Status.Patrolling = false
-		Client.Status.isShooting = false
-		Client.Status.Reloading = false
-		justClicked = false
-		Client.GUI:Destroy()
-		if Client.Status.isZoomed or zoomToggle then
-			zoomOut()
-		end
-		
-		--[[ DISCONNECT RUN-TIME FUNCTIONS ]]--
-		for i,func in pairs(Client.FirearmFunctions) do
-			func:disconnect()
-		end
-		Client.AnimationTracks['Walk']:Stop()
-	end)
-	
-	return Client
+local Client = {}
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+-- Network
+local NetworkFolder = ReplicatedStorage:WaitForChild("firearmsNetwork")
+local Modules = ReplicatedStorage:WaitForChild("firearmsModules")
+local RE = NetworkFolder:WaitForChild("RE")
+
+-- Module Variables
+Client.Tool = script.Parent.Parent
+Client.Player = Players.LocalPlayer
+Client.Character = nil
+Client.Humanoid = nil
+Client.Animator = nil
+Client.FirearmConnections = {}
+Client.AnimationTracks = {}
+Client.FiringMode = "AUTOMATIC"
+Client.IgnoreModel = workspace:WaitForChild("IgnoreModel")
+Client.Camera = workspace.CurrentCamera
+Client.Mouse = Client.Player:GetMouse()
+Client.GUI = nil
+
+-- Wait for character to load
+local function waitForCharacter()
+local character = Client.Player.Character or Client.Player.CharacterAdded:Wait()
+
+-- Wait for character to be parented to workspace
+while character.Parent ~= workspace do
+if Client.Player.Parent ~= Players then
+return nil, nil
+end
+task.wait()
+end
+
+local humanoid = character:WaitForChild("Humanoid", 5)
+if not humanoid then
+warn("[FirearmClient] Humanoid not found")
+return nil, nil
+end
+
+return character, humanoid
+end
+
+Client.Character, Client.Humanoid = waitForCharacter()
+if not Client.Character or not Client.Humanoid then
+return Client
+end
+
+-- Get Animator (modern API for loading animations)
+Client.Animator = Client.Humanoid:FindFirstChildOfClass("Animator")
+if not Client.Animator then
+Client.Animator = Instance.new("Animator")
+Client.Animator.Parent = Client.Humanoid
+end
+
+-- Load Firearm Stats
+Client.firearmStats = require(Modules:WaitForChild("firearmStats"))[Client.Tool.Name]
+if not Client.firearmStats then
+warn("[FirearmClient] No stats found for weapon: " .. Client.Tool.Name)
+return Client
+end
+
+Client.AnimationIds = Client.firearmStats.AnimationIds
+Client.Controls = Client.firearmStats.Controls
+
+-- Client Status
+Client.Status = {
+Equipped = false,
+Patrolling = false,
+Reloading = false,
+MouseDown = false,
+MouseRotate = true,
+IsFireable = true,
+IsShooting = false,
+IsJumping = false,
+IsWalking = false,
+IsRotating = false,
+IsZoomed = false,
+IsBoltAction = Client.firearmStats.Boltaction,
+IsOnMobile = UserInputService.TouchEnabled,
+HasScope = Client.firearmStats.hasScope,
+CanFullAuto = Client.firearmStats.Fullauto,
+Ammunition = Client.firearmStats.MagCapacity,
+MaxAmmunition = Client.firearmStats.MaxAmmo,
+}
+
+-- Add character to ignore list for raycasting
+table.insert(Client.firearmStats.IgnoreList, Client.Character)
+
+-- Load Animations
+local function loadAnimations()
+for animName, animId in pairs(Client.AnimationIds) do
+local animation = Instance.new("Animation")
+animation.Name = animName
+animation.AnimationId = animId
+animation.Parent = Client.Tool:WaitForChild("Handle")
+
+Client.AnimationTracks[animName] = Client.Animator:LoadAnimation(animation)
+end
+end
+
+loadAnimations()
+
+-- Raycast Parameters Setup
+local raycastParams = RaycastParams.new()
+raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+raycastParams.FilterDescendantsInstances = Client.firearmStats.IgnoreList
+
+-- Ammo Cache Handling
+local function setupAmmoCaches()
+local ammoCaches = workspace:FindFirstChild("AmmoCaches")
+if not ammoCaches then return end
+
+for _, cachePart in ipairs(ammoCaches:GetChildren()) do
+local debounce = false
+
+cachePart.Touched:Connect(function(hitPart)
+if debounce then return end
+
+local player = Players:GetPlayerFromCharacter(hitPart.Parent) or 
+               Players:GetPlayerFromCharacter(hitPart.Parent and hitPart.Parent.Parent)
+
+if player and player == Client.Player and Client.Status.Equipped then
+if Client.Status.MaxAmmunition < Client.firearmStats.MaxAmmo then
+debounce = true
+Client.Status.MaxAmmunition = Client.firearmStats.MaxAmmo
+
+-- Update GUI
+if Client.GUI and Client.GUI:FindFirstChild("Ammo") then
+Client.GUI.Ammo.Text = Client.Status.Ammunition .. "/" .. Client.Status.MaxAmmunition
+end
+
+-- Play collect sound
+local collectSound = cachePart:FindFirstChild("collectAmmo")
+if collectSound then
+local newSound = collectSound:Clone()
+newSound.Parent = cachePart
+newSound:Play()
+newSound.Ended:Once(function()
+newSound:Destroy()
+end)
+end
+
+task.wait(0.5)
+debounce = false
+end
+end
+end)
+end
+end
+
+setupAmmoCaches()
+
+-- Camera angle calculations for scope
+local function getEulerAnglesYX(cameraCFrame)
+local _, _, _, m00, m01, m02, m10, m11, m12, m20, m21, m22 = cameraCFrame:GetComponents()
+local y = math.abs(m12) > 0.99999 and -math.atan2(-m20, m00) or -math.atan2(-m02, m22)
+local x = -math.asin(m12)
+return y, x
+end
+
+local cameraAngleY, cameraAngleX = getEulerAnglesYX(Client.Camera.CFrame)
+local zoomToggle = false
+
+-- Zoom Functions
+local function zoomIn()
+Client.Status.MouseRotate = false
+
+if Client.GUI and Client.Status.HasScope then
+local bar = Client.GUI:FindFirstChild("Bar")
+local reticle = Client.GUI:FindFirstChild("Reticle")
+local cursor = Client.GUI:FindFirstChild("Cursor")
+
+if bar then bar.Visible = false end
+if reticle then reticle.Visible = true end
+if cursor then cursor.Visible = false end
+
+StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, true)
+end
+
+Client.Status.IsZoomed = true
+Client.Player.CameraMode = Enum.CameraMode.LockFirstPerson
+
+local aimPart = Client.Tool:FindFirstChild("AimPart2")
+if aimPart then
+Client.Camera.CameraSubject = aimPart
+end
+
+-- Animate FOV change for scoped weapons
+if Client.Status.HasScope then
+local fovSteps = math.floor((70 - Client.firearmStats.targetFOV) / 5)
+for i = 1, fovSteps do
+Client.Camera.FieldOfView = Client.Camera.FieldOfView - 5
+task.wait(0.01)
+end
+end
+end
+
+local function zoomOut()
+-- Animate FOV back to normal for scoped weapons
+if Client.Status.HasScope then
+local fovSteps = math.floor((70 - Client.firearmStats.targetFOV) / 5) / 2
+for i = 1, fovSteps do
+Client.Camera.FieldOfView = Client.Camera.FieldOfView + 5
+task.wait(0.01)
+end
+end
+
+Client.Camera.FieldOfView = 70
+Client.Player.CameraMode = Enum.CameraMode.Classic
+Client.Camera.CameraSubject = Client.Humanoid
+Client.Status.MouseRotate = true
+
+if Client.GUI and Client.Status.HasScope then
+local bar = Client.GUI:FindFirstChild("Bar")
+local reticle = Client.GUI:FindFirstChild("Reticle")
+local cursor = Client.GUI:FindFirstChild("Cursor")
+
+if bar then bar.Visible = true end
+if reticle then reticle.Visible = false end
+if cursor then cursor.Visible = true end
+
+StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+end
+
+Client.Status.IsZoomed = false
+zoomToggle = false
+end
+
+local function toggleZoom()
+if not zoomToggle then
+zoomToggle = true
+zoomIn()
+else
+zoomOut()
+zoomToggle = false
+end
+end
+
+-- Update camera angles periodically when not zoomed
+task.spawn(function()
+while true do
+task.wait(0.5)
+if not Client.Status.IsZoomed then
+cameraAngleY, cameraAngleX = getEulerAnglesYX(Client.Camera.CFrame)
+end
+end
+end)
+
+-- Magazine and Round Effects
+local function newMagazine()
+-- Show bolt back position
+local boltBack = Client.Tool:FindFirstChild("BoltBack")
+local bolt = Client.Tool:FindFirstChild("Bolt")
+
+if boltBack then boltBack.Transparency = 0 end
+if bolt then bolt.Transparency = 1 end
+
+-- Play reload animation
+if Client.AnimationTracks.Reload then
+Client.AnimationTracks.Reload:Play()
+end
+
+-- Clone magazine
+local oldMag = Client.Tool:FindFirstChild("Mag")
+if not oldMag then return end
+
+local newMag = oldMag:Clone()
+
+task.wait(Client.firearmStats.Waittimes.MagazineRelease)
+
+-- Remove old magazine weld and play sound
+local weld = oldMag:FindFirstChild("qCFrameWeldThingy")
+if weld then weld:Destroy() end
+
+local handle = Client.Tool:FindFirstChild("Handle")
+if handle then
+local magOutSound = handle:FindFirstChild("MagOut")
+if magOutSound then magOutSound:Play() end
+end
+
+-- Drop old magazine
+oldMag.Parent = Client.IgnoreModel
+oldMag.CanCollide = true
+Debris:AddItem(oldMag, 1)
+
+task.wait(Client.firearmStats.Waittimes.ReloadTime)
+
+-- Insert new magazine
+newMag.Parent = Client.Tool
+
+if Client.Status.Equipped and handle then
+local magInSound = handle:FindFirstChild("MagIn")
+if magInSound then magInSound:Play() end
+task.wait(Client.firearmStats.Waittimes.PrimeAfterReloadTime)
+end
+end
+
+local function roundFired()
+-- Bolt action delay
+if Client.Status.IsBoltAction then
+task.wait(0.1)
+end
+
+-- Show bolt back position
+local boltBack = Client.Tool:FindFirstChild("BoltBack")
+local bolt = Client.Tool:FindFirstChild("Bolt")
+
+if boltBack then boltBack.Transparency = 0 end
+if bolt then bolt.Transparency = 1 end
+
+-- Create shell casing
+local chamber = Client.Tool:FindFirstChild("Chamber")
+if chamber then
+local shell = Instance.new("Part")
+shell.Material = Enum.Material.Metal
+shell.Size = Vector3.new(1, 1, 1)
+shell.Color = Color3.fromRGB(253, 139, 0)
+shell.CFrame = chamber.CFrame
+shell.CanCollide = false
+shell.Transparency = 0
+shell.Reflectance = 0.4
+shell.TopSurface = Enum.SurfaceType.Smooth
+shell.BottomSurface = Enum.SurfaceType.Smooth
+shell.Name = "Shell"
+shell.Velocity = chamber.CFrame.LookVector * 35 + Vector3.new(math.random(-5, 5), 20, math.random(-5, 10))
+shell.RotVelocity = Vector3.new(0, 200, 0)
+
+-- Set physical properties with no bounce
+local oldProps = PhysicalProperties.new(shell.Material)
+shell.CustomPhysicalProperties = PhysicalProperties.new(oldProps.Density, oldProps.Friction, 0, oldProps.FrictionWeight, 0)
+
+-- Add mesh
+local mesh = Instance.new("SpecialMesh")
+mesh.Scale = Client.firearmStats.ShellSize
+mesh.Parent = shell
+
+shell.Parent = Client.IgnoreModel
+Debris:AddItem(shell, 1)
+end
+
+task.wait(Client.firearmStats.Firerate)
+
+-- Return bolt to forward position if ammo remains
+if Client.Status.Ammunition > 0 then
+if Client.Status.IsBoltAction then
+task.wait(1)
+end
+if boltBack then boltBack.Transparency = 1 end
+if bolt then bolt.Transparency = 0 end
+end
+end
+
+-- Cursor Update
+local function updateCursor()
+if not Client.GUI or not Client.GUI:FindFirstChild("Cursor") then return end
+
+local target = Client.Mouse.Target
+if target and target.Parent and target.Parent:FindFirstChildOfClass("Humanoid") then
+local targetPlayer = Players:GetPlayerFromCharacter(target.Parent)
+if targetPlayer then
+if targetPlayer.Team == Client.Player.Team then
+Client.GUI.Cursor.ImageColor3 = Color3.fromRGB(0, 200, 0)
+elseif targetPlayer.Team and targetPlayer.Team.Name == "Civilians" then
+Client.GUI.Cursor.ImageColor3 = Color3.fromRGB(213, 115, 61)
+else
+Client.GUI.Cursor.ImageColor3 = Color3.fromRGB(200, 0, 0)
+end
+else
+Client.GUI.Cursor.ImageColor3 = Color3.new(1, 1, 1)
+end
+else
+Client.GUI.Cursor.ImageColor3 = Color3.new(1, 1, 1)
+end
+end
+
+-- Main render loop setup
+local function bootFirearm()
+-- Jump detection
+local jumpConnection = Client.Humanoid.Jumping:Connect(function()
+Client.Status.IsJumping = true
+task.delay(0.5, function()
+Client.Status.IsJumping = false
+end)
+end)
+table.insert(Client.FirearmConnections, jumpConnection)
+
+-- Render loop
+local renderConnection = RunService.RenderStepped:Connect(function()
+if not Client.Status.Equipped then return end
+
+-- Walk animation handling
+local isMoving = Client.Humanoid.MoveDirection ~= Vector3.zero
+
+if not isMoving and not Client.Status.Patrolling and Client.Status.IsWalking then
+Client.AnimationTracks.Walk:Stop()
+Client.Status.IsWalking = false
+elseif Client.Status.IsJumping then
+Client.AnimationTracks.Walk:Stop()
+Client.Status.IsWalking = false
+elseif isMoving and not Client.Status.Patrolling and not Client.Status.IsWalking and Client.Status.Equipped then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+
+-- Cursor positioning
+if Client.GUI and Client.GUI:FindFirstChild("Cursor") then
+local cursor = Client.GUI.Cursor
+cursor.Position = UDim2.new(0, Client.Mouse.X - (cursor.AbsoluteSize.X / 2), 0, Client.Mouse.Y - (cursor.AbsoluteSize.Y / 2))
+Client.Mouse.Icon = "rbxassetid://131719387"
+updateCursor()
+end
+
+-- Walkspeed handling
+if Client.Status.IsWalking and not Client.Status.Patrolling then
+Client.Humanoid.WalkSpeed = 12
+elseif not Client.Status.Patrolling then
+Client.Humanoid.WalkSpeed = 16
+end
+
+-- Scope camera smoothing
+if Client.Mouse and Client.Status.IsZoomed then
+local currentY, currentX = getEulerAnglesYX(Client.Camera.CFrame)
+local smoothing = 0.15
+
+cameraAngleY = cameraAngleY * (1 - smoothing) + (currentY + (2 * math.pi) * math.floor((cameraAngleY - currentY) / (2 * math.pi) + 0.5)) * smoothing
+cameraAngleX = cameraAngleX * (1 - smoothing) + (currentX + (2 * math.pi) * math.floor((cameraAngleX - currentX) / (2 * math.pi) + 0.5)) * smoothing
+
+Client.Camera.CFrame = CFrame.Angles(0, cameraAngleY, 0) * CFrame.Angles(cameraAngleX, 0, 0) * CFrame.new(0, 0, 0.5) + Client.Camera.Focus.Position
+end
+
+-- Face mouse direction
+local rootPart = Client.Character:FindFirstChild("HumanoidRootPart")
+if Client.Mouse and rootPart and (Client.firearmStats.FollowCursor or Client.Status.IsZoomed) then
+Client.Humanoid.AutoRotate = false
+
+local targetPosition = Client.Mouse.Hit.Position * Vector3.new(1, 0, 1) + rootPart.Position * Vector3.new(0, 1, 0)
+local targetCFrame = CFrame.new(rootPart.Position, targetPosition)
+
+local tweenInfo = TweenInfo.new(Client.firearmStats.Waittimes.cursorSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+tween:Play()
+else
+if not Client.firearmStats.FollowCursor and not Client.Status.IsZoomed then
+Client.Humanoid.AutoRotate = true
+end
+end
+end)
+table.insert(Client.FirearmConnections, renderConnection)
+end
+
+-- Patrol (lower weapon) handling
+local function lowerWeapon()
+if not Client.Status.Patrolling then
+Client.AnimationTracks.Hold:Stop()
+Client.AnimationTracks.Patrol:Play()
+Client.AnimationTracks.Walk:Stop()
+Client.Status.IsWalking = false
+Client.Status.Patrolling = true
+Client.Humanoid.WalkSpeed = Client.firearmStats.Speeds.Runspeed
+else
+Client.AnimationTracks.Hold:Play()
+Client.AnimationTracks.Patrol:Stop()
+Client.Status.Patrolling = false
+
+if Client.Humanoid.MoveDirection ~= Vector3.zero and not Client.Status.Patrolling then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+end
+end
+
+-- Reload handling
+local function reloadWeapon()
+local ammoNeeded = Client.firearmStats.MagCapacity
+if Client.Status.MaxAmmunition < ammoNeeded then return end
+
+-- Exit zoom if zoomed
+if Client.Status.IsZoomed or zoomToggle then
+zoomOut()
+end
+
+Client.Status.Reloading = true
+local prevName = Client.Tool.Name
+Client.Tool.Name = "[REL]"
+
+-- Client-side magazine rendering
+newMagazine()
+
+-- Update ammo counts
+Client.Tool.Name = prevName
+Client.Status.MaxAmmunition = Client.Status.MaxAmmunition - ammoNeeded
+Client.Status.Ammunition = ammoNeeded
+
+-- Update GUI
+if Client.GUI and Client.GUI:FindFirstChild("Ammo") then
+Client.GUI.Ammo.Text = Client.Status.Ammunition .. "/" .. Client.Status.MaxAmmunition
+end
+
+-- Put bolt forwards
+local boltBack = Client.Tool:FindFirstChild("BoltBack")
+local bolt = Client.Tool:FindFirstChild("Bolt")
+
+if boltBack then boltBack.Transparency = 1 end
+if bolt then bolt.Transparency = 0 end
+
+local handle = Client.Tool:FindFirstChild("Handle")
+if handle then
+local primeSound = handle:FindFirstChild("Prime")
+if primeSound then primeSound:Play() end
+end
+
+task.wait(Client.firearmStats.Waittimes.ReloadConstant)
+Client.Status.Reloading = false
+end
+
+-- Fire weapon
+local function fireWeapon()
+-- Check all conditions
+if Client.Status.IsShooting then return false end
+if not Client.Status.IsFireable then return false end
+if Client.Status.Ammunition <= 0 then
+if Client.Status.IsOnMobile and not Client.Status.Reloading and Client.Status.Equipped then
+if Client.Status.Patrolling then
+Client.AnimationTracks.Hold:Play()
+Client.AnimationTracks.Patrol:Stop()
+Client.Status.Patrolling = false
+if Client.Humanoid.MoveDirection ~= Vector3.zero then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+end
+reloadWeapon()
+else
+local handle = Client.Tool:FindFirstChild("Handle")
+if handle then
+local noRoundSound = handle:FindFirstChild("NoRound")
+if noRoundSound then noRoundSound:Play() end
+end
+end
+return false
+end
+if Client.Status.Patrolling then
+Client.AnimationTracks.Hold:Play()
+Client.AnimationTracks.Patrol:Stop()
+Client.Status.Patrolling = false
+if Client.Humanoid.MoveDirection ~= Vector3.zero then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+task.wait(0.3)
+return true
+end
+if not Client.Status.Equipped then return false end
+if Client.Status.Reloading then return false end
+if Client.Humanoid.Health <= 0 then return false end
+
+-- Bolt action requires zoom
+if Client.Status.IsBoltAction and not Client.Status.IsZoomed then return false end
+
+Client.Status.IsShooting = true
+
+-- Decrement ammo
+Client.Status.Ammunition = Client.Status.Ammunition - 1
+if Client.GUI and Client.GUI:FindFirstChild("Ammo") then
+Client.GUI.Ammo.Text = Client.Status.Ammunition .. "/" .. Client.Status.MaxAmmunition
+end
+
+-- Calculate firing direction with accuracy
+local barrelEnd = Client.Tool:FindFirstChild("BarrelEnd")
+if not barrelEnd then
+Client.Status.IsShooting = false
+return false
+end
+
+local origin = barrelEnd.Position
+local direction = (Client.Mouse.Hit.Position - origin).Unit
+
+-- Apply accuracy spread
+local baseAccuracy = Client.firearmStats.Accuracy
+local trueAccuracy
+
+if Client.Status.IsZoomed and Client.Status.HasScope then
+trueAccuracy = (1 - baseAccuracy) * 100
+elseif Client.Status.HasScope then
+trueAccuracy = (1 - (baseAccuracy - 0.01)) * 100
+else
+trueAccuracy = (1 - baseAccuracy) * 100
+end
+
+local spread = Vector3.new(
+math.random(-trueAccuracy, trueAccuracy) / 100,
+math.random(-trueAccuracy, trueAccuracy) / 100,
+math.random(-trueAccuracy, trueAccuracy) / 100
+)
+
+local finalDirection = (direction + spread).Unit * Client.firearmStats.Range
+
+-- Perform raycast (modern API)
+local raycastResult = workspace:Raycast(origin, finalDirection, raycastParams)
+local hitPart = raycastResult and raycastResult.Instance or nil
+local hitPosition = raycastResult and raycastResult.Position or (origin + finalDirection)
+
+-- Confirm hit from head position
+local head = Client.Character:FindFirstChild("Head")
+if head then
+local confirmDirection = (hitPosition - head.Position)
+local confirmResult = workspace:Raycast(head.Position, confirmDirection, raycastParams)
+
+if confirmResult then
+local originalX = math.floor(hitPosition.X)
+local confirmX = math.floor(confirmResult.Position.X)
+
+if originalX ~= confirmX then
+hitPosition = confirmResult.Position
+hitPart = confirmResult.Instance
+end
+end
+end
+
+-- Show hitmarker
+task.spawn(function()
+if hitPart and hitPart.Parent and hitPart.Parent:FindFirstChildOfClass("Humanoid") then
+if Client.GUI then
+local cursor = Client.GUI:FindFirstChild("Cursor")
+local reticle = Client.GUI:FindFirstChild("Reticle")
+
+if cursor then
+cursor.Image = Client.firearmStats.Cursors[1].Hit
+end
+if reticle then
+local reticleImage = reticle:FindFirstChild("Reticle")
+if reticleImage then
+reticleImage.Image = Client.firearmStats.Reticles[1].Hit
+end
+end
+
+task.wait(Client.firearmStats.Waittimes.HitmarkerTime)
+
+if Client.GUI then
+if cursor then
+cursor.Image = Client.firearmStats.Cursors[1].Normal
+end
+if reticle then
+local reticleImage = reticle:FindFirstChild("Reticle")
+if reticleImage then
+reticleImage.Image = Client.firearmStats.Reticles[1].Normal
+end
+end
+end
+end
+end
+end)
+
+-- Fire to server
+RE:FireServer("fireWeapon", Client.Character, hitPart, hitPosition, Client.Status.IsBoltAction)
+
+-- Render local trail
+local flame = Client.Tool:FindFirstChild("Flame")
+if flame then
+local attachment = flame:FindFirstChild("Attachment")
+if attachment then
+local renderer = Client.Player:WaitForChild("PlayerScripts"):FindFirstChild("Renderer")
+if renderer then
+local renderEvent = renderer:FindFirstChild("Render")
+if renderEvent then
+renderEvent:Fire("renderTrail", attachment, hitPosition)
+end
+end
+end
+end
+
+-- Round fired effects
+roundFired()
+
+task.wait(Client.firearmStats.Waittimes.FireConstant)
+Client.Status.IsShooting = false
+return true
+end
+
+-- Keyboard input handling
+local function handleKeyInput(input)
+local keyCode = input.KeyCode
+
+if keyCode == Client.Controls.Reload and not Client.Status.Reloading and Client.Status.Equipped then
+if Client.Status.Patrolling then
+Client.AnimationTracks.Hold:Play()
+Client.AnimationTracks.Patrol:Stop()
+Client.Status.Patrolling = false
+if Client.Humanoid.MoveDirection ~= Vector3.zero then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+end
+reloadWeapon()
+elseif keyCode == Client.Controls.Patrol and not Client.Status.Reloading and Client.Status.Equipped then
+lowerWeapon()
+elseif keyCode == Client.Controls.ChangeFiremode and Client.Status.Equipped then
+if Client.FiringMode == "AUTOMATIC" then
+Client.FiringMode = "SEMI-AUTOMATIC"
+elseif Client.Status.CanFullAuto then
+Client.FiringMode = "AUTOMATIC"
+end
+
+if Client.GUI and Client.GUI:FindFirstChild("Mode") then
+Client.GUI.Mode.Text = Client.FiringMode == "AUTOMATIC" and "AUTO" or "SEMI"
+end
+elseif keyCode == Client.Controls.ChangeReticle then
+-- Change reticle (to be implemented)
+end
+end
+
+-- Tool activation (fire)
+Client.Tool.Activated:Connect(function()
+Client.Status.MouseDown = true
+
+if Client.FiringMode == "AUTOMATIC" then
+while Client.Status.MouseDown do
+if not fireWeapon() then break end
+end
+else
+fireWeapon()
+end
+
+-- Resume walking animation if moving
+if Client.Humanoid.MoveDirection ~= Vector3.zero and not Client.Status.Patrolling and Client.Status.Equipped and not Client.Status.IsWalking then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+end)
+
+Client.Tool.Deactivated:Connect(function()
+Client.Status.MouseDown = false
+end)
+
+-- Keyboard and mouse input
+local justClicked = false
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+if gameProcessed then return end
+
+if input.UserInputType == Enum.UserInputType.Keyboard then
+handleKeyInput(input)
+elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+if Client.Status.Equipped and not Client.Status.Patrolling and Client.Status.HasScope then
+-- Double-click to zoom
+task.spawn(function()
+if not justClicked then
+justClicked = true
+task.wait(1)
+if justClicked then
+justClicked = false
+end
+else
+justClicked = false
+toggleZoom()
+end
+end)
+end
+end
+end)
+
+-- Equip handling
+Client.Tool.Equipped:Connect(function(newMouse)
+-- Setup GUI
+local existingGUI = Client.Player.PlayerGui:FindFirstChild("firearmGUI")
+if existingGUI then
+existingGUI:Destroy()
+end
+
+task.spawn(function()
+local guiTemplate = Modules:FindFirstChild("firearmGUI")
+if guiTemplate then
+Client.GUI = guiTemplate:Clone()
+Client.GUI.Parent = Client.Player.PlayerGui
+
+local rName = Client.GUI:FindFirstChild("RName")
+if rName then
+rName.Text = Client.firearmStats.DisplayName
+end
+
+local ammoLabel = Client.GUI:FindFirstChild("Ammo")
+if ammoLabel then
+ammoLabel.Text = Client.Status.Ammunition .. "/" .. Client.Status.MaxAmmunition
+end
+
+if not Client.Status.CanFullAuto then
+Client.FiringMode = "SEMI-AUTOMATIC"
+end
+
+local modeLabel = Client.GUI:FindFirstChild("Mode")
+if modeLabel then
+modeLabel.Text = Client.FiringMode == "AUTOMATIC" and "AUTO" or "SEMI"
+end
+
+local reticle = Client.GUI:FindFirstChild("Reticle")
+if reticle then
+local reticleImage = reticle:FindFirstChild("Reticle")
+if reticleImage then
+reticleImage.Image = Client.firearmStats.Reticles[1].Normal
+end
+end
+end
+end)
+
+-- Equip setup
+Client.AnimationTracks.Hold:Play()
+bootFirearm()
+Client.Status.Equipped = true
+Client.Mouse = newMouse
+Client.Mouse.TargetFilter = Client.IgnoreModel
+
+-- Resume walking animation if already moving
+if Client.Humanoid.MoveDirection ~= Vector3.zero and not Client.Status.Patrolling then
+Client.AnimationTracks.Walk:Play(0.2)
+Client.Status.IsWalking = true
+end
+end)
+
+-- Unequip handling
+Client.Tool.Unequipped:Connect(function()
+Client.Status.Equipped = false
+Client.Humanoid.WalkSpeed = 16
+
+-- Stop all animations
+for _, track in pairs(Client.AnimationTracks) do
+track:Stop()
+end
+
+Client.Humanoid.AutoRotate = true
+Client.Status.Patrolling = false
+Client.Status.IsShooting = false
+Client.Status.Reloading = false
+justClicked = false
+
+-- Clean up GUI
+if Client.GUI then
+Client.GUI:Destroy()
+Client.GUI = nil
+end
+
+-- Exit zoom
+if Client.Status.IsZoomed or zoomToggle then
+zoomOut()
+end
+
+-- Disconnect all firearm connections
+for _, connection in ipairs(Client.FirearmConnections) do
+if connection.Connected then
+connection:Disconnect()
+end
+end
+table.clear(Client.FirearmConnections)
+end)
+
+return Client

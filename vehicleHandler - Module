@@ -1,70 +1,120 @@
---[[ AVALLEX 03/07/18 ]]--
+--[[
+	Vehicle Handler Module
+	Handles damage to vehicles and their components (wheels, bulletproof glass, turrets)
+]]
 
-local vehicleHandler = {}
+local VehicleHandler = {}
+
+-- Vehicle names to search for (can be extended)
+VehicleHandler.Vehicles = {}
+
+-- Helper function to search up hierarchy for a specific model name
+local function findAncestorByName(instance, nameToFind, substringRange)
+	if instance == workspace then return nil end
 	
-	vehicleHandler.Vehicles = nil
-	function recursiveHieracySearch(instance,nameToFind,sub)
-		if instance == workspace then return; end
-		local success,retrieve = pcall(function()
-			if instance.Parent and (sub and string.sub(instance.Parent.Name,sub[1],sub[2]) or instance.Parent.Name) == nameToFind then
-				return ((nameToFind == 'Wheels' and instance) or instance.Parent)
-			elseif instance.Name == 'Vehicle' and nameToFind ~= 'Turret' then
-				-- if instance.Name == 'Vehicle' | Checks if a vehicle exists when the hitpart is a descendant of the Turret model, which is a sibling to the vehicle name, not a chile
-				-- and nameToFind ~= 'Turret' | Makes sure the turret cant be found if the turret search reaches the 'Vehicle' model, as it would detect the turret all the time
-				return ((instance:FindFirstChild(nameToFind) and instance[nameToFind]) or recursiveHieracySearch(instance.Parent,nameToFind))
-			elseif instance.Parent then
-				return recursiveHieracySearch(instance.Parent,nameToFind)
-			else
-				return
-			end
-		end)
-		if success then return retrieve else warn('Search Failed! - '..tostring(retrieve)) end
+	local parent = instance.Parent
+	if not parent then return nil end
+	
+	local parentName = parent.Name
+	if substringRange then
+		parentName = string.sub(parentName, substringRange[1], substringRange[2])
 	end
 	
-	function vehicleHandler:detectVehicleHit(hitpart)
-		if not hitpart.Parent:IsA('Model') then return end
-		local vehiclesTable = {}
-		for i,vehicleName in pairs(vehicleHandler.Vehicles) do
-			local vehicle = recursiveHieracySearch(hitpart,vehicleName)
-			if vehicle then
-				local vehicleTable = {Vehicle = vehicle}
-				vehicleTable.BPG = recursiveHieracySearch(hitpart,'BPG',{1,3})
-				vehicleTable.Wheel = recursiveHieracySearch(hitpart,'Wheels')
-				vehicleTable.Turret = recursiveHieracySearch(hitpart,'Turret')
-				vehiclesTable[#vehiclesTable+1] = vehicleTable
+	if parentName == nameToFind then
+		-- Special case for Wheels - return the instance itself
+		if nameToFind == "Wheels" then
+			return instance
+		end
+		return parent
+	end
+	
+	-- Special case: if we hit a "Vehicle" model, check for child with target name
+	if instance.Name == "Vehicle" and nameToFind ~= "Turret" then
+		local targetChild = instance:FindFirstChild(nameToFind)
+		if targetChild then
+			return targetChild
+		end
+	end
+	
+	return findAncestorByName(parent, nameToFind, substringRange)
+end
+
+-- Detect if hit part belongs to a vehicle
+function VehicleHandler:detectVehicleHit(hitPart)
+	if not hitPart or not hitPart.Parent or not hitPart.Parent:IsA("Model") then
+		return nil
+	end
+	
+	local vehiclesTable = {}
+	
+	for _, vehicleName in ipairs(self.Vehicles) do
+		local vehicle = findAncestorByName(hitPart, vehicleName)
+		if vehicle then
+			local vehicleData = {
+				Vehicle = vehicle,
+				BPG = findAncestorByName(hitPart, "BPG", {1, 3}),
+				Wheel = findAncestorByName(hitPart, "Wheels"),
+				Turret = findAncestorByName(hitPart, "Turret")
+			}
+			table.insert(vehiclesTable, vehicleData)
+		end
+	end
+	
+	if #vehiclesTable > 0 then
+		return vehiclesTable
+	end
+	
+	return nil
+end
+
+-- Handle damage to vehicles
+function VehicleHandler:handleDamage(hitPart)
+	if not hitPart then return end
+	
+	task.spawn(function()
+		local vehiclesTable = self:detectVehicleHit(hitPart)
+		if not vehiclesTable then return end
+		
+		for _, vehicleData in ipairs(vehiclesTable) do
+			local vehicle = vehicleData.Vehicle
+			local wheel = vehicleData.Wheel
+			local bpg = vehicleData.BPG
+			local turret = vehicleData.Turret
+			
+			local stats = vehicle:FindFirstChild("Stats")
+			if not stats then continue end
+			
+			-- Apply health damage
+			local health = stats:FindFirstChild("Health")
+			if health then
+				health.Value = health.Value - 1
+			end
+			
+			-- Apply wheel damage
+			local wheelsStats = stats:FindFirstChild("Wheels")
+			if wheelsStats and wheel then
+				local wheelStat = wheelsStats:FindFirstChild(wheel.Name)
+				if wheelStat then
+					wheelStat.Value = wheelStat.Value - 1
+				end
+			end
+			
+			-- Apply bulletproof glass damage
+			local bpgStats = stats:FindFirstChild("BPGlass")
+			if bpgStats and bpg then
+				local bpgStat = bpgStats:FindFirstChild(bpg.Name)
+				if bpgStat then
+					bpgStat.Value = bpgStat.Value - 1
+				end
+			end
+			
+			-- Apply turret damage
+			local turretStat = stats:FindFirstChild("Turret")
+			if turretStat and turret then
+				turretStat.Value = turretStat.Value - 1
 			end
 		end
-		if #vehiclesTable > 0 then return vehiclesTable else return; end
-	end
-	
-	function vehicleHandler:handleDamage(hitPart)
-		coroutine.resume(coroutine.create(function(hitpart)
-			local vehiclesTable = vehicleHandler:detectVehicleHit(hitPart)
-			if vehiclesTable then
-				for i,vehicleTable in pairs(vehiclesTable) do
-					local Vehicle = vehicleTable.Vehicle
-					local Wheel = vehicleTable.Wheel
-					local BPG = vehicleTable.BPG
-					local Turret = vehicleTable.Turret
-					local Stats = Vehicle:FindFirstChild('Stats')
-					if Stats then
-						if Stats:FindFirstChild('Health') then
-							Stats.Health.Value = Stats.Health.Value - 1
-						end
-						if Stats:FindFirstChild('Wheels') and Wheel then
-							Stats.Wheels[Wheel.Name].Value = Stats.Wheels[Wheel.Name].Value - 1
-						end
-						if Stats:FindFirstChild('BPGlass') and BPG then
-							Stats.BPGlass[BPG.Name].Value = Stats.BPGlass[BPG.Name].Value - 1
-						end
-						if Stats:FindFirstChild('Turret') and Turret then
-							Stats.Turret.Value = Stats.Turret.Value - 1
-						end
-					end
-				end
-				vehiclesTable = nil
-			end
-		end),hitPart)
-	end
+	end)
+end
 
-return vehicleHandler
+return VehicleHandler

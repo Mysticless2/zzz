@@ -1,41 +1,66 @@
-	--                                                           --
-	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
-	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
-	--	|       |   |   |       |   ---|   -   |      <    ___|  --
-	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
-	--	                                                         --
-	--                      by Avallex                           --
-	
-	local firearmsCore = {}
-	 
-	--[[ GAME SERVICES ]]--
-	local Players = game:GetService('Players')
-	local ReplicatedStorage = game:GetService('ReplicatedStorage')
-	
-	--[[ NETWORK ]]--
-	local NetworkFolder = Instance.new('Folder',ReplicatedStorage);NetworkFolder.Name = 'firearmsNetwork'
-	local RE,RF = Instance.new('RemoteEvent',NetworkFolder),Instance.new('RemoteFunction',NetworkFolder),Instance.new('RemoteEvent',NetworkFolder)
-	RE.Name,RF.Name = 'RE','RF'
-	
-	--[[ IGNORE MODEL ]]--
-	if not workspace:FindFirstChild('IgnoreModel') then
-		local IM = Instance.new('Folder',workspace); IM.Name = 'IgnoreModel'
+--[[
+	Firearms Core Module
+	Handles network setup and command routing for the firearm system
+]]
+
+local FirearmsCore = {}
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Setup Network Folder
+local NetworkFolder = ReplicatedStorage:FindFirstChild("firearmsNetwork")
+if not NetworkFolder then
+	NetworkFolder = Instance.new("Folder")
+	NetworkFolder.Name = "firearmsNetwork"
+	NetworkFolder.Parent = ReplicatedStorage
+end
+
+-- Setup Remote Events
+local RE = NetworkFolder:FindFirstChild("RE")
+if not RE then
+	RE = Instance.new("RemoteEvent")
+	RE.Name = "RE"
+	RE.Parent = NetworkFolder
+end
+
+local RF = NetworkFolder:FindFirstChild("RF")
+if not RF then
+	RF = Instance.new("RemoteFunction")
+	RF.Name = "RF"
+	RF.Parent = NetworkFolder
+end
+
+-- Setup Ignore Model for raycasting
+local IgnoreModel = workspace:FindFirstChild("IgnoreModel")
+if not IgnoreModel then
+	IgnoreModel = Instance.new("Folder")
+	IgnoreModel.Name = "IgnoreModel"
+	IgnoreModel.Parent = workspace
+end
+
+-- Load Modules
+local firearmHandler = require(script:WaitForChild("firearmHandler"))
+
+-- Command Handlers
+local CommandHandlers = {
+	fireWeapon = function(player, ...)
+		firearmHandler:fireWeapon(player, ...)
+	end,
+	crouch = function(player, ...)
+		-- Crouch handling (to be implemented)
 	end
-	
-	--[[ MODULES ]]--
-	local firearmHandler = require(script:WaitForChild('firearmHandler'))
-	
-	RE.OnServerEvent:connect(function(player,command,...)
-		coroutine.resume(coroutine.create(function(player,command,...)
-			if command == 'fireWeapon' then
-				firearmHandler:fireWeapon(player,...)
-			elseif command == 'crouch' then
-				
-			end
-		end),player,command,...)
-	end)
-	
-	
-	
-	
-	return firearmsCore
+}
+
+-- Handle incoming remote events
+RE.OnServerEvent:Connect(function(player, command, ...)
+	local handler = CommandHandlers[command]
+	if handler then
+		task.spawn(handler, player, ...)
+	else
+		warn(string.format("[FirearmsCore] Unknown command received: %s from player: %s", tostring(command), player.Name))
+	end
+end)
+
+return FirearmsCore

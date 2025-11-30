@@ -1,102 +1,187 @@
-	--                                                           --
-	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
-	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
-	--	|       |   |   |       |   ---|   -   |      <    ___|  --
-	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
-	--	                                                         --
-	--                      by Avallex                           --
+--[[
+	Firearm Handler Module
+	Handles server-side weapon firing, damage calculation, and effects
+]]
 
-	local firearmHandler = {}
+local FirearmHandler = {}
 
-	--[[ GAME SERVICES ]]--
-	local Players = game:GetService('Players')
-	local ReplicatedStorage = game:GetService('ReplicatedStorage')
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
 
+-- Load firearm stats
+local firearmStats = require(ReplicatedStorage:WaitForChild("firearmsModules"):WaitForChild("firearmStats"))
 
-	--[[ FIREARM SETTINGS ]]--
-	local firearmStats = require(ReplicatedStorage:WaitForChild('firearmsModules'):WaitForChild('firearmStats'))
+-- Load sub-modules
+local objectHandler = require(script:FindFirstChild("objectHandler"))
+local vehicleHandler = require(script:FindFirstChild("vehicleHandler"))
+
+-- Network
+local NetworkFolder = ReplicatedStorage:WaitForChild("firearmsNetwork")
+local RE = NetworkFolder:WaitForChild("RE")
+
+-- Constants
+local DAMAGE_MULTIPLIERS = {
+	Head = 2,
+	Torso = 1.5,
+	UpperTorso = 1.5,
+	LowerTorso = 1.25,
+}
+
+-- Helper function to find humanoid from hit part
+local function findHumanoidFromPart(hitPart)
+	if not hitPart then return nil end
 	
-	--[[ MODULES ]]--
-	local objectHandler = require(script:FindFirstChild('objectHandler'))
-	local vehicleHandler = require(script:FindFirstChild('vehicleHandler'))
-
-	--[[ NETWORK ]]--
-	local NetworkFolder = ReplicatedStorage:WaitForChild('firearmsNetwork')
-	local RE,RF = NetworkFolder:WaitForChild('RE'),NetworkFolder:WaitForChild('RF')
-	
-	function firearmHandler:fireWeapon(Player,...)
-		local data = {...}
-		local Character = data[1]
-		local Tool = Character:FindFirstChildOfClass('Tool')
-		local Hitpart,Hitposition = data[2],data[3]
-		local Boltaction = data[4]
-		if Character ~= Player.Character then Player:Kick() end
-		
-		coroutine.resume(coroutine.create(function()
-			
-			
-			if Tool.BarrelEnd then
-				--[[ VFX ]]--
-				Tool.BarrelEnd.Flash.Enabled = true
-				Tool.BarrelEnd.FlashFX.Enabled = true
-				Tool.BarrelEnd.Smoke.Enabled = true
-			end
-			
-			--[[ RENDER ]]--
-			for i,player in pairs(Players:GetPlayers()) do
-				if player ~= Player then RE:FireClient(player,'renderTrail',Tool.Flame.Attachment,Hitposition) end
-			end
-			
-			--[[ SOUND ]]--
-			local newSound = Tool.Handle.Fire:Clone(); newSound.Parent = Tool.Handle
-			newSound.PlaybackSpeed = 1 + math.random(-10,10)/100
-			newSound:Play()
-			newSound.Ended:connect(function() newSound:Destroy() end)
-			
-			wait(.05)
-			if Tool.BarrelEnd then
-				--[[ VFX ]]--
-				Tool.BarrelEnd.Flash.Enabled = false
-				Tool.BarrelEnd.FlashFX.Enabled = false
-				Tool.BarrelEnd.Smoke.Enabled = false
-			end
-			
-			--[[ SOUND ]]--
-			if Boltaction then
-				wait(1)
-				Tool.Handle.Prime:Play()
-			end
-			
-		end))
-		
-		if Hitpart then
-			print(Hitpart.ClassName,Hitpart.Parent.ClassName)
-			if Hitpart.Parent:IsA('Accessory') then
-				local Handle = Hitpart.Parent:FindFirstChild('Handle')
-				if Handle then local Weld = Handle:FindFirstChild('AccessoryWeld') if Weld then Hitpart = Weld.Part1 end end
-			end
-			local Humanoid = Hitpart.Parent:FindFirstChild('Humanoid')
-			if not Humanoid then Humanoid = Hitpart.Parent.Parent:FindFirstChild('Humanoid') end
-			if Humanoid then
-				local damageDealt = firearmStats[Tool.Name].Damage
-				if Hitpart.Name == 'Head' then
-					damageDealt = damageDealt * 2
-				elseif Hitpart.Name == 'Torso' then
-					damageDealt = damageDealt * 1.5
-				end
-				--
-				if Humanoid.Health > 0 then
-					Humanoid:TakeDamage(damageDealt)
-				end
-			else
-				if objectHandler then
-					objectHandler:handleDamage(Hitpart)
-				elseif vehicleHandler then
-					objectHandler:handleDamage(Hitpart)
+	local parent = hitPart.Parent
+	if parent then
+		-- Check if hit an accessory first
+		if parent:IsA("Accessory") then
+			local handle = parent:FindFirstChild("Handle")
+			if handle then
+				local weld = handle:FindFirstChild("AccessoryWeld")
+				if weld and weld.Part1 then
+					parent = weld.Part1.Parent
 				end
 			end
 		end
 		
+		-- Try to find humanoid in parent or grandparent
+		local humanoid = parent:FindFirstChildOfClass("Humanoid")
+		if not humanoid and parent.Parent then
+			humanoid = parent.Parent:FindFirstChildOfClass("Humanoid")
+		end
+		
+		return humanoid, parent
 	end
+	
+	return nil
+end
 
-	return firearmHandler
+-- Handle muzzle flash and sound effects
+local function playFireEffects(tool, isBoltAction)
+	local barrelEnd = tool:FindFirstChild("BarrelEnd")
+	
+	if barrelEnd then
+		-- Enable flash effects
+		local flash = barrelEnd:FindFirstChild("Flash")
+		local flashFX = barrelEnd:FindFirstChild("FlashFX")
+		local smoke = barrelEnd:FindFirstChild("Smoke")
+		
+		if flash then flash.Enabled = true end
+		if flashFX then flashFX.Enabled = true end
+		if smoke then smoke.Enabled = true end
+		
+		-- Disable after brief delay
+		task.delay(0.05, function()
+			if flash then flash.Enabled = false end
+			if flashFX then flashFX.Enabled = false end
+			if smoke then smoke.Enabled = false end
+		end)
+	end
+	
+	-- Play fire sound with slight pitch variation
+	local handle = tool:FindFirstChild("Handle")
+	if handle then
+		local fireSound = handle:FindFirstChild("Fire")
+		if fireSound then
+			local newSound = fireSound:Clone()
+			newSound.PlaybackSpeed = 1 + (math.random(-10, 10) / 100)
+			newSound.Parent = handle
+			newSound:Play()
+			
+			newSound.Ended:Once(function()
+				newSound:Destroy()
+			end)
+		end
+		
+		-- Play bolt action sound after delay
+		if isBoltAction then
+			task.delay(1, function()
+				local primeSound = handle:FindFirstChild("Prime")
+				if primeSound then
+					primeSound:Play()
+				end
+			end)
+		end
+	end
+end
+
+-- Replicate trail effect to other players
+local function replicateTrailEffect(firingPlayer, tool, hitPosition)
+	local flameAttachment = tool:FindFirstChild("Flame")
+	if not flameAttachment then return end
+	
+	local attachment = flameAttachment:FindFirstChild("Attachment")
+	if not attachment then return end
+	
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= firingPlayer then
+			RE:FireClient(player, "renderTrail", attachment, hitPosition)
+		end
+	end
+end
+
+-- Apply damage to humanoid
+local function applyDamage(humanoid, hitPart, baseDamage)
+	if not humanoid or humanoid.Health <= 0 then return end
+	
+	local damageMultiplier = DAMAGE_MULTIPLIERS[hitPart.Name] or 1
+	local finalDamage = baseDamage * damageMultiplier
+	
+	humanoid:TakeDamage(finalDamage)
+end
+
+-- Handle object/vehicle damage
+local function handleEnvironmentDamage(hitPart)
+	if objectHandler then
+		objectHandler:handleDamage(hitPart)
+	end
+	if vehicleHandler then
+		vehicleHandler:handleDamage(hitPart)
+	end
+end
+
+-- Main fire weapon function
+function FirearmHandler:fireWeapon(player, ...)
+	local args = {...}
+	local character = args[1]
+	local hitPart = args[2]
+	local hitPosition = args[3]
+	local isBoltAction = args[4] or false
+	
+	-- Validate player and character
+	if not player or not player.Character then return end
+	if character ~= player.Character then
+		player:Kick("Character mismatch detected")
+		return
+	end
+	
+	local tool = character:FindFirstChildOfClass("Tool")
+	if not tool then return end
+	
+	local stats = firearmStats[tool.Name]
+	if not stats then
+		warn(string.format("[FirearmHandler] No stats found for weapon: %s", tool.Name))
+		return
+	end
+	
+	-- Play effects asynchronously
+	task.spawn(playFireEffects, tool, isBoltAction)
+	
+	-- Replicate trail to other players
+	task.spawn(replicateTrailEffect, player, tool, hitPosition)
+	
+	-- Process hit
+	if hitPart then
+		local humanoid, hitParent = findHumanoidFromPart(hitPart)
+		
+		if humanoid then
+			applyDamage(humanoid, hitPart, stats.Damage)
+		else
+			handleEnvironmentDamage(hitPart)
+		end
+	end
+end
+
+return FirearmHandler
