@@ -1,0 +1,50 @@
+--[[ AVALLEX 03/07/18 ]]--
+
+local objectHandler = {}
+	
+	objectHandler.Vehicles = nil
+	function recursiveHieracySearch(instance,nameToFind)
+		if instance == workspace then return; end
+		local success,retrieve = pcall(function()
+			if instance.Parent and instance.Parent.Name == nameToFind then
+				return instance.Parent
+			elseif instance.Parent then
+				return recursiveHieracySearch(instance.Parent,nameToFind)
+			else
+				return
+			end
+		end)
+		if success then return retrieve else warn('Search Failed! - '..tostring(retrieve)) end
+	end
+	
+	function objectHandler:detectAntennaHit(hitpart)
+		if not hitpart.Parent:IsA('Model') then return end
+		return recursiveHieracySearch(hitpart,'RadioAntenna')
+	end
+	
+	function objectHandler:handleDamage(hitPart)
+		coroutine.resume(coroutine.create(function(hitpart)
+			local antennaObject = objectHandler:detectAntennaHit(hitPart)
+			if antennaObject then
+				local Stats = antennaObject:FindFirstChild('Stats')
+				if Stats then
+					if Stats:FindFirstChild('Health') then
+						Stats.Health.Value = Stats.Health.Value - 1
+					end
+				end
+			end
+		end),hitPart)
+	end
+	
+	--
+	local RE = Instance.new('RemoteEvent',game:GetService('ReplicatedStorage'));RE.Name = 'weldEvent'
+	RE.OnServerEvent:connect(function(player,antennaModel)
+		if not antennaModel:FindFirstChild('Stats') then return end
+		for i=1,5 do
+			wait(.2)
+			antennaModel.Stats.Health.Value = antennaModel.Stats.Health.Value + 1
+		end
+	end)
+	
+
+return objectHandler
