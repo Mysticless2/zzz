@@ -1,0 +1,310 @@
+-- Visual Effects Tester
+-- Place this as a LocalScript in StarterGui or StarterPlayerScripts
+-- This triggers the actual game effects via RemoteEvent
+
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- Wait for character
+repeat wait() until player.Character
+local char = player.Character
+local root = char:WaitForChild("HumanoidRootPart")
+
+-- Wait for the Effect RemoteEvent
+local effectRemote = game.ReplicatedStorage:WaitForChild("Effect")
+
+-- Create GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EffectTester"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player.PlayerGui
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 360, 0, 550)
+mainFrame.Position = UDim2.new(0, 10, 0.5, -275)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 2
+mainFrame.BorderColor3 = Color3.fromRGB(0, 170, 255)
+mainFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+
+-- Title Bar
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+title.BorderSizePixel = 0
+title.Text = "🎨 Effect System Tester"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = title
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -10, 0, 50)
+statusLabel.Position = UDim2.new(0, 5, 0, 40)
+statusLabel.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "✓ Connected to Effect System\nReady to test!"
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.TextSize = 13
+statusLabel.TextWrapped = true
+statusLabel.Parent = mainFrame
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 6)
+statusCorner.Parent = statusLabel
+
+-- Scroll Frame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -10, 1, -100)
+scrollFrame.Position = UDim2.new(0, 5, 0, 95)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.Parent = mainFrame
+
+local scrollCorner = Instance.new("UICorner")
+scrollCorner.CornerRadius = UDim.new(0, 6)
+scrollCorner.Parent = scrollFrame
+
+-- Helper function to get position in front of player
+local function getFrontPos(distance)
+	return root.CFrame * CFrame.new(0, 0, -distance)
+end
+
+-- Effect list with actual parameters from your code
+local effects = {
+	{name = "Explosion", desc = "Big boom effect", color = Color3.new(1, 0.5, 0), func = function()
+		local cf = getFrontPos(10)
+		effectRemote:FireServer("test_Explosion", cf, 2, Color3.fromRGB(255, 150, 0))
+	end},
+
+	{name = "SmokeFade", desc = "Fading smoke cloud", color = Color3.new(0.7, 0.7, 0.7), func = function()
+		local cf = getFrontPos(8)
+		effectRemote:FireServer("test_SmokeFade", cf, 1, 8, Color3.fromRGB(200, 200, 200), 0.3)
+	end},
+
+	{name = "Impact", desc = "Ground impact effect", color = Color3.new(0.8, 0.8, 0.8), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_Impact", cf, 10)
+	end},
+
+	{name = "FastImpact", desc = "Quick impact ring", color = Color3.new(1, 0.4, 0.4), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_FastImpact", cf, 10, Color3.fromRGB(255, 100, 100))
+	end},
+
+	{name = "Splash", desc = "Water splash", color = Color3.new(0.4, 0.8, 1), func = function()
+		local pos = root.Position + root.CFrame.LookVector * 8
+		effectRemote:FireServer("test_Splash", pos, 1.5, Color3.fromRGB(100, 200, 255))
+	end},
+
+	{name = "FastSplash", desc = "Quick water splash", color = Color3.new(0.4, 0.8, 1), func = function()
+		local pos = root.Position + root.CFrame.LookVector * 8
+		effectRemote:FireServer("test_FastSplash", pos, 1.5, Color3.fromRGB(100, 200, 255))
+	end},
+
+	{name = "slice", desc = "Slash with spin", color = Color3.new(1, 0.4, 0.4), func = function()
+		local cf = getFrontPos(5)
+		effectRemote:FireServer("test_slice", cf, 10, Color3.fromRGB(255, 100, 100))
+	end},
+
+	{name = "slicenospin", desc = "Slash no spin", color = Color3.new(0.4, 1, 1), func = function()
+		local cf = getFrontPos(5)
+		effectRemote:FireServer("test_slicenospin", cf, 10, Color3.fromRGB(100, 255, 255))
+	end},
+
+	{name = "slicerise", desc = "Rising slash", color = Color3.new(1, 1, 0.4), func = function()
+		local cf = getFrontPos(5)
+		effectRemote:FireServer("test_slicerise", cf, 10, Color3.fromRGB(255, 255, 100))
+	end},
+
+	{name = "Ball1", desc = "Energy ball trail", color = Color3.new(1, 1, 0.4), func = function()
+		local pos = root.Position
+		local target = (root.CFrame * CFrame.new(0, 0, -20)).p
+		effectRemote:FireServer("test_Ball1", pos, target)
+	end},
+
+	{name = "Ball2", desc = "Alt ball trail", color = Color3.new(0.4, 0.8, 1), func = function()
+		local pos = root.Position
+		local target = (root.CFrame * CFrame.new(0, 0, -20)).p
+		effectRemote:FireServer("test_Ball2", pos, target)
+	end},
+
+	{name = "Ball3", desc = "Fast ball trail", color = Color3.new(1, 0.4, 0.8), func = function()
+		local pos = root.Position
+		local target = (root.CFrame * CFrame.new(0, 0, -20)).p
+		effectRemote:FireServer("test_Ball3", pos, target)
+	end},
+
+	{name = "FastRing", desc = "Expanding ring", color = Color3.new(1, 1, 1), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_FastRing", cf, 15)
+	end},
+
+	{name = "LightFastRing", desc = "Light ring", color = Color3.new(1, 1, 0.4), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_LightFastRing", cf, 15, Color3.fromRGB(255, 255, 100))
+	end},
+
+	{name = "Lightning", desc = "Lightning strike", color = Color3.new(1, 1, 0.4), func = function()
+		local startPos = root.Position + Vector3.new(0, 20, 0)
+		local endPos = root.Position + Vector3.new(math.random(-10, 10), -5, math.random(-10, 10))
+		effectRemote:FireServer("test_Lightning", startPos, endPos, 3, 0.5, 0.3, false, false)
+	end},
+
+	{name = "kbanim", desc = "Knockback anim", color = Color3.new(1, 0.8, 0.4), func = function()
+		effectRemote:FireServer("test_kbanim", root, root)
+	end},
+
+	{name = "Shake", desc = "Camera shake", color = Color3.new(0.8, 0.8, 0.8), func = function()
+		effectRemote:FireServer("test_Shake", root.Position, 50)
+	end},
+
+	{name = "Smoke", desc = "Smoke cloud", color = Color3.new(0.6, 0.6, 0.6), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_Smoke", cf, 5, Color3.fromRGB(150, 150, 150), 3)
+	end},
+
+	{name = "Lines", desc = "Speed lines", color = Color3.new(1, 1, 0.4), func = function()
+		local cf1 = root.CFrame
+		local cf2 = getFrontPos(20)
+		effectRemote:FireServer("test_Lines", cf1, 10, cf2, 30, 1, Color3.fromRGB(255, 255, 0), 15)
+	end},
+
+	{name = "Gust", desc = "Wind effect", color = Color3.new(0.8, 1, 1), func = function()
+		effectRemote:FireServer("test_Gust", root)
+	end},
+
+	{name = "SphereShockwave", desc = "Sphere wave", color = Color3.new(0.4, 0.8, 1), func = function()
+		effectRemote:FireServer("test_SphereShockwave", root, 15, Color3.fromRGB(100, 200, 255), 3)
+	end},
+
+
+
+	{name = "thinring", desc = "Thin ring", color = Color3.new(1, 1, 0.4), func = function()
+		local cf = getFrontPos(6)
+		effectRemote:FireServer("test_thinring", cf, 10, Color3.fromRGB(255, 255, 0))
+	end},
+
+	{name = "FloatingRocks", desc = "Rising debris", color = Color3.new(0.8, 0.8, 0.6), func = function()
+		local cf = getFrontPos(6) * CFrame.new(0, -3, 0)
+		effectRemote:FireServer("test_FloatingRocks", cf)
+	end},
+}
+
+-- Create buttons
+local yPos = 5
+for i, effect in ipairs(effects) do
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(1, -10, 0, 55)
+	button.Position = UDim2.new(0, 5, 0, yPos)
+	button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	button.BorderSizePixel = 0
+	button.AutoButtonColor = false
+	button.Parent = scrollFrame
+
+	-- Color indicator
+	local colorBar = Instance.new("Frame")
+	colorBar.Size = UDim2.new(0, 4, 1, 0)
+	colorBar.Position = UDim2.new(0, 0, 0, 0)
+	colorBar.BackgroundColor3 = effect.color
+	colorBar.BorderSizePixel = 0
+	colorBar.Parent = button
+
+	-- Text label
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -10, 1, 0)
+	label.Position = UDim2.new(0, 10, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = effect.name .. "\n" .. effect.desc
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.Font = Enum.Font.SourceSansBold
+	label.TextSize = 14
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = button
+
+	local buttonCorner = Instance.new("UICorner")
+	buttonCorner.CornerRadius = UDim.new(0, 6)
+	buttonCorner.Parent = button
+
+	button.MouseEnter:Connect(function()
+		button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	end)
+
+	button.MouseLeave:Connect(function()
+		button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	end)
+
+	button.MouseButton1Click:Connect(function()
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			root = player.Character.HumanoidRootPart
+			local success, err = pcall(function()
+				effect.func()
+			end)
+
+			if success then
+				button.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+				statusLabel.Text = "✓ Triggered: " .. effect.name .. "\nEffect spawned in front of you!"
+				statusLabel.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+				print("✓ Fired effect:", effect.name)
+				wait(0.15)
+				button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+			else
+				button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+				statusLabel.Text = "✗ Error: " .. effect.name .. "\n" .. tostring(err)
+				statusLabel.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+				warn("✗ Error:", err)
+				wait(0.3)
+				button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+			end
+		end
+	end)
+
+	yPos = yPos + 60
+end
+
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yPos)
+
+-- Drag functionality
+local dragging = false
+local mousePos, framePos
+
+title.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		mousePos = input.Position
+		framePos = mainFrame.Position
+	end
+end)
+
+title.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - mousePos
+		mainFrame.Position = UDim2.new(
+			framePos.X.Scale,
+			framePos.X.Offset + delta.X,
+			framePos.Y.Scale,
+			framePos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+print("🎨 Effect Tester loaded and connected!")
+print("Note: You need a server script to receive and handle test effects")
