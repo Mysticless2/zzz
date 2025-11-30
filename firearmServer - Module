@@ -1,116 +1,176 @@
-	--                                                           --
-	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
-	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
-	--	|       |   |   |       |   ---|   -   |      <    ___|  --
-	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
-	--	                                                         --
-	--                      by Avallex                           --
+--[[
+	Firearm Server Module
+	Handles server-side tool equip/unequip and weapon clone management
+]]
+
+local Server = {}
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Network
+local NetworkFolder = ReplicatedStorage:WaitForChild("firearmsNetwork")
+local RE = NetworkFolder:WaitForChild("RE")
+
+-- Module Variables
+Server.Tool = script.Parent.Parent
+Server.Character = nil
+Server.Player = nil
+Server.Equipped = false
+
+-- Get firearm stats
+local firearmStats = require(ReplicatedStorage:WaitForChild("firearmsModules"):WaitForChild("firearmStats"))[Server.Tool.Name]
+if not firearmStats then
+	warn("[FirearmServer] No stats found for weapon: " .. Server.Tool.Name)
+	return Server
+end
+
+-- Helper function to create weapon clone when unequipped
+local function createWeaponClone()
+	if Server.Equipped or not Server.Character then return end
 	
-	local Server = {}
-	 
-	--[[ GAME SERVICES ]]--
-	local Players = game:GetService('Players')
-	local ReplicatedStorage = game:GetService('ReplicatedStorage')
+	local humanoid = Server.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid and humanoid.Health <= 0 then return end
 	
-	--[[ NETWORK ]]--
-	local NetworkFolder = ReplicatedStorage:WaitForChild('firearmsNetwork')
-	local RE,RF = NetworkFolder:WaitForChild('RE'),NetworkFolder:WaitForChild('RF')
-	
-	--[[ MODULE VARIABLES ]]--
-	Server.Tool = script.Parent.Parent
-	Server.Character = Server.Tool.Parent.Parent.Character
-	Server.Player = Server.Tool.Parent.Parent
-	Server.firearmStats = require(game:GetService('ReplicatedStorage'):WaitForChild('firearmsModules'):WaitForChild('firearmStats'))[Server.Tool.Name]
-	Server.Equipped = false;
-	
-	--[[ CLONE HANDLING ]]--
-	function createClone()
-	
-		local fakeClone = Instance.new('Model')
-		fakeClone.Name = (Server.firearmStats.CloneName or 'firearmClone')
-		
-		local h = Server.Tool.Handle:Clone();h.Parent = fakeClone
-		for i,part in pairs(Server.Tool:GetChildren()) do
-			if part:IsA('BasePart') and part.Name ~= 'Handle' and part.Name ~= 'Mag' then
-				for i,v in pairs(part:GetChildren()) do if v:IsA('Weld') then v:Destroy() end end
-				part:Clone().Parent = fakeClone
-			end
-		end
-		
-		for i,part in pairs(fakeClone:GetChildren()) do
-			if part:IsA('BasePart') and part.Name ~= 'Handle' then
-				local w = Instance.new('Weld',part)
-				w.Part0 = fakeClone.Handle
-				w.Part1 = part
-				w.C0 = fakeClone.Handle.CFrame:toObjectSpace(part.CFrame)
-			end
-		end
-		
-		local w = Instance.new('Weld',fakeClone.Handle)
-		w.Part0 = fakeClone.Handle
-		w.Part1 = Server.Character:FindFirstChild(Server.firearmStats.WeldPart or 'Torso')
-		w.Name = 'cloneWeld'
-		w.C0 = Server.firearmStats.WeldOffset
-		--
-		for i,v in pairs(fakeClone.Handle:GetChildren()) do
-			if v:IsA('Sound') then v:Stop() wait(.03) v:Destroy() end
-		end
-		--
-		fakeClone.BarrelEnd.Flash.Enabled = false
-		fakeClone.BarrelEnd.FlashFX.Enabled = false
-		fakeClone.BarrelEnd.Smoke.Enabled = false
-		fakeClone.Handle.Name = 'OldToolMain'
-		--
-		if not Server.Equipped then
-			
-			--[[ REMOVE CLONE ]]--
-			for i,v in pairs(Server.Character:GetChildren()) do
-				if v.Name == Server.firearmStats.CloneName then
-					v:Destroy()
-				end
-			end
-			fakeClone.Parent = Server.Character
-		else
-			fakeClone:Destroy()
+	-- Remove existing clones
+	for _, child in ipairs(Server.Character:GetChildren()) do
+		if child.Name == firearmStats.CloneName then
+			child:Destroy()
 		end
 	end
 	
-	--[[ EQUIP HANDLING ]]--
-	Server.Tool.Equipped:connect(function()
-		
-		Server.Equipped = true
-		
-		--[[ UPDATE CHARACTER ]]--
-		Server.Character = Server.Tool.Parent
-		
-		--[[ REMOVE CLONE ]]--
-		for i,v in pairs(Server.Character:GetChildren()) do
-			if v.Name == Server.firearmStats.CloneName then
-				v:Destroy()
+	-- Create new clone model
+	local cloneModel = Instance.new("Model")
+	cloneModel.Name = firearmStats.CloneName or "firearmClone"
+	
+	-- Clone handle
+	local originalHandle = Server.Tool:FindFirstChild("Handle")
+	if not originalHandle then return end
+	
+	local clonedHandle = originalHandle:Clone()
+	clonedHandle.Parent = cloneModel
+	
+	-- Clone other parts (except Handle and Mag)
+	for _, part in ipairs(Server.Tool:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "Handle" and part.Name ~= "Mag" then
+			-- Remove existing welds from clone
+			local clonedPart = part:Clone()
+			for _, weld in ipairs(clonedPart:GetChildren()) do
+				if weld:IsA("Weld") or weld:IsA("WeldConstraint") then
+					weld:Destroy()
+				end
 			end
+			clonedPart.Parent = cloneModel
 		end
-		
-		--[[ UPDATE PLAYER ]]--
-		Server.Player = Players:GetPlayerFromCharacter(Server.Character)
-		
-		--[[ PLAY SOUND ]]--
-	    Server.Tool.Handle.Equip:Play()
-	    if Server.firearmStats.followCursor then
-		    Server.Character:WaitForChild('Humanoid').AutoRotate = false
+	end
+	
+	-- Create welds for all parts to handle
+	for _, part in ipairs(cloneModel:GetChildren()) do
+		if part:IsA("BasePart") and part.Name ~= "Handle" then
+			local weld = Instance.new("Weld")
+			weld.Part0 = clonedHandle
+			weld.Part1 = part
+			weld.C0 = clonedHandle.CFrame:ToObjectSpace(part.CFrame)
+			weld.Parent = part
 		end
-	end)
-	Server.Tool.Unequipped:connect(function()
-		Server.Equipped = false
+	end
+	
+	-- Weld to character
+	local weldPart = Server.Character:FindFirstChild(firearmStats.WeldPart or "Torso")
+	if weldPart then
+		local characterWeld = Instance.new("Weld")
+		characterWeld.Name = "cloneWeld"
+		characterWeld.Part0 = clonedHandle
+		characterWeld.Part1 = weldPart
+		characterWeld.C0 = firearmStats.WeldOffset
+		characterWeld.Parent = clonedHandle
+	end
+	
+	-- Clean up sounds from cloned handle (immediate cleanup)
+	for _, child in ipairs(clonedHandle:GetChildren()) do
+		if child:IsA("Sound") then
+			child:Stop()
+			child:Destroy()
+		end
+	end
+	
+	-- Disable visual effects on clone
+	local barrelEnd = cloneModel:FindFirstChild("BarrelEnd")
+	if barrelEnd then
+		local flash = barrelEnd:FindFirstChild("Flash")
+		local flashFX = barrelEnd:FindFirstChild("FlashFX")
+		local smoke = barrelEnd:FindFirstChild("Smoke")
 		
-		if Server.Character:FindFirstChild('Humanoid') and Server.Character:FindFirstChild('Humanoid').Health <= 0 then return; end
-		Server.Character:WaitForChild('Humanoid').AutoRotate = true
-		
-		
-		wait(.03)
+		if flash then flash.Enabled = false end
+		if flashFX then flashFX.Enabled = false end
+		if smoke then smoke.Enabled = false end
+	end
+	
+	-- Rename handle to avoid conflicts
+	clonedHandle.Name = "OldToolMain"
+	
+	-- Parent the clone
+	cloneModel.Parent = Server.Character
+end
+
+-- Remove existing weapon clones
+local function removeExistingClones()
+	if not Server.Character then return end
+	
+	for _, child in ipairs(Server.Character:GetChildren()) do
+		if child.Name == firearmStats.CloneName then
+			child:Destroy()
+		end
+	end
+end
+
+-- Handle equip
+Server.Tool.Equipped:Connect(function()
+	Server.Equipped = true
+	
+	-- Update character reference
+	Server.Character = Server.Tool.Parent
+	
+	-- Remove any existing clones
+	removeExistingClones()
+	
+	-- Update player reference
+	Server.Player = Players:GetPlayerFromCharacter(Server.Character)
+	
+	-- Play equip sound
+	local handle = Server.Tool:FindFirstChild("Handle")
+	if handle then
+		local equipSound = handle:FindFirstChild("Equip")
+		if equipSound then
+			equipSound:Play()
+		end
+	end
+	
+	-- Disable auto-rotate if following cursor
+	local humanoid = Server.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid and firearmStats.FollowCursor then
+		humanoid.AutoRotate = false
+	end
+end)
+
+-- Handle unequip
+Server.Tool.Unequipped:Connect(function()
+	Server.Equipped = false
+	
+	-- Re-enable auto-rotate
+	local humanoid = Server.Character and Server.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		if humanoid.Health <= 0 then return end
+		humanoid.AutoRotate = true
+	end
+	
+	-- Create clone after short delay to ensure state is updated
+	task.delay(0.03, function()
 		if not Server.Equipped then
-			createClone()
+			createWeaponClone()
 		end
 	end)
-	
-	
-	return Server
+end)
+
+return Server
