@@ -1,0 +1,102 @@
+	--                                                           --
+	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
+	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
+	--	|       |   |   |       |   ---|   -   |      <    ___|  --
+	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
+	--	                                                         --
+	--                      by Avallex                           --
+
+	local firearmHandler = {}
+
+	--[[ GAME SERVICES ]]--
+	local Players = game:GetService('Players')
+	local ReplicatedStorage = game:GetService('ReplicatedStorage')
+
+
+	--[[ FIREARM SETTINGS ]]--
+	local firearmStats = require(ReplicatedStorage:WaitForChild('firearmsModules'):WaitForChild('firearmStats'))
+	
+	--[[ MODULES ]]--
+	local objectHandler = require(script:FindFirstChild('objectHandler'))
+	local vehicleHandler = require(script:FindFirstChild('vehicleHandler'))
+
+	--[[ NETWORK ]]--
+	local NetworkFolder = ReplicatedStorage:WaitForChild('firearmsNetwork')
+	local RE,RF = NetworkFolder:WaitForChild('RE'),NetworkFolder:WaitForChild('RF')
+	
+	function firearmHandler:fireWeapon(Player,...)
+		local data = {...}
+		local Character = data[1]
+		local Tool = Character:FindFirstChildOfClass('Tool')
+		local Hitpart,Hitposition = data[2],data[3]
+		local Boltaction = data[4]
+		if Character ~= Player.Character then Player:Kick() end
+		
+		coroutine.resume(coroutine.create(function()
+			
+			
+			if Tool.BarrelEnd then
+				--[[ VFX ]]--
+				Tool.BarrelEnd.Flash.Enabled = true
+				Tool.BarrelEnd.FlashFX.Enabled = true
+				Tool.BarrelEnd.Smoke.Enabled = true
+			end
+			
+			--[[ RENDER ]]--
+			for i,player in pairs(Players:GetPlayers()) do
+				if player ~= Player then RE:FireClient(player,'renderTrail',Tool.Flame.Attachment,Hitposition) end
+			end
+			
+			--[[ SOUND ]]--
+			local newSound = Tool.Handle.Fire:Clone(); newSound.Parent = Tool.Handle
+			newSound.PlaybackSpeed = 1 + math.random(-10,10)/100
+			newSound:Play()
+			newSound.Ended:connect(function() newSound:Destroy() end)
+			
+			wait(.05)
+			if Tool.BarrelEnd then
+				--[[ VFX ]]--
+				Tool.BarrelEnd.Flash.Enabled = false
+				Tool.BarrelEnd.FlashFX.Enabled = false
+				Tool.BarrelEnd.Smoke.Enabled = false
+			end
+			
+			--[[ SOUND ]]--
+			if Boltaction then
+				wait(1)
+				Tool.Handle.Prime:Play()
+			end
+			
+		end))
+		
+		if Hitpart then
+			print(Hitpart.ClassName,Hitpart.Parent.ClassName)
+			if Hitpart.Parent:IsA('Accessory') then
+				local Handle = Hitpart.Parent:FindFirstChild('Handle')
+				if Handle then local Weld = Handle:FindFirstChild('AccessoryWeld') if Weld then Hitpart = Weld.Part1 end end
+			end
+			local Humanoid = Hitpart.Parent:FindFirstChild('Humanoid')
+			if not Humanoid then Humanoid = Hitpart.Parent.Parent:FindFirstChild('Humanoid') end
+			if Humanoid then
+				local damageDealt = firearmStats[Tool.Name].Damage
+				if Hitpart.Name == 'Head' then
+					damageDealt = damageDealt * 2
+				elseif Hitpart.Name == 'Torso' then
+					damageDealt = damageDealt * 1.5
+				end
+				--
+				if Humanoid.Health > 0 then
+					Humanoid:TakeDamage(damageDealt)
+				end
+			else
+				if objectHandler then
+					objectHandler:handleDamage(Hitpart)
+				elseif vehicleHandler then
+					objectHandler:handleDamage(Hitpart)
+				end
+			end
+		end
+		
+	end
+
+	return firearmHandler
