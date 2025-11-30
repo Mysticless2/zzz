@@ -1,0 +1,487 @@
+local firearmStats = {}
+--
+local standardRound = Vector3.new(0.1, 0.4, 0.1)
+local glockRound = Vector3.new(0.09, 0.15, 0.9)
+--
+local followCursor = false
+firearmStats["L85"] = {
+	Accuracy = 0.9978,
+	Damage = 20,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282774853",
+		Patrol = "rbxassetid://6282775303",
+		Walk = "rbxassetid://6282776014",
+		Reload = "rbxassetid://6282775663"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = false,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.4,
+		ReloadTime = 0.6,
+		PrimeAfterReloadTime = 0.2,
+		ReloadConstant = 0.15,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 16, Runspeed = 22},
+	ShellSize = standardRound,
+	DisplayName = "L85",
+	MaxAmmo = 10000,
+	MagCapacity = 30,
+	Firerate = 0.06,
+	RoundType = "5.56",
+	Fullauto = true,
+	Boltaction = false,
+	Range = 1500,
+	WeldPart = "Torso",
+	WeldOffset = CFrame.new(-1.10000002, 0.5, 0.400000006, -4.37113883E-8, 0, 1, 0.819152057, 0.57357645, 3.58062735E-8, -0.57357645, 0.819152057, -2.50718237E-8),
+	CloneName = "firearmClone",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["L86"] = {
+	Accuracy = 0.9978,
+	Damage = 20,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282774853",
+		Patrol = "rbxassetid://6282775303",
+		Walk = "rbxassetid://6282776014",
+		Reload = "rbxassetid://6282775663"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = true,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.4,
+		ReloadTime = 0.6,
+		PrimeAfterReloadTime = 0.2,
+		ReloadConstant = 0.15,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 16, Runspeed = 22},
+	ShellSize = standardRound,
+	DisplayName = "L86",
+	MaxAmmo = 10000,
+	MagCapacity = 30,
+	Firerate = 0.06,
+	RoundType = "5.56",
+	Fullauto = true,
+	Boltaction = false,
+	Range = 1500,
+	WeldPart = "Torso",
+	WeldOffset = CFrame.new(-1.10000002, 0.5, 0.400000006, -4.37113883E-8, 0, 1, 0.819152057, 0.57357645, 3.58062735E-8, -0.57357645, 0.819152057, -2.50718237E-8),
+	CloneName = "firearmClone",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["SCAR-H"] = {
+	Accuracy = 0.9975,
+	Damage = 15,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282780219",
+		Patrol = "rbxassetid://6282780576",
+		Walk = "rbxassetid://6282781248",
+		Reload = "rbxassetid://6282780955"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = false,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.2,
+		ReloadTime = 0.7,
+		PrimeAfterReloadTime = 0.35,
+		ReloadConstant = 0.15,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 16, Runspeed = 28},
+	ShellSize = standardRound,
+	DisplayName = "SCAR-H",
+	MaxAmmo = 10000,
+	MagCapacity = 40,
+	Firerate = 0.07,
+	RoundType = "7.62",
+	Fullauto = true,
+	Boltaction = false,
+	Range = 1500,
+	WeldPart = "Torso",
+	WeldOffset = CFrame.new(0.389999926, 0.426157445, -0.402837515, 3.05979654E-7, 1.7484561E-7, -1, -0.819152296, 0.573576212, -1.50356641E-7, 0.573576212, 0.819152296, 3.18727842E-7),
+	CloneName = "firearmClone",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["MK48"] = {
+	Accuracy = 0.996,
+	Damage = 8,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282786814",
+		Patrol = "rbxassetid://6282787161",
+		Walk = "rbxassetid://6282787892",
+		Reload = "rbxassetid://6282787545"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = false,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 3.4,
+		ReloadTime = 3.6,
+		PrimeAfterReloadTime = 2.5,
+		ReloadConstant = 0.1,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 10, Runspeed = 22},
+	ShellSize = standardRound,
+	DisplayName = "MK48",
+	MaxAmmo = 10000,
+	MagCapacity = 150,
+	Firerate = 0.045,
+	RoundType = "7.62",
+	Fullauto = true,
+	Boltaction = false,
+	Range = 900,
+	WeldPart = "Torso",
+	WeldOffset = CFrame.new(0.838182569, 0.649700701, 0.868562818, -0.640856743, 0.640856504, -0.422618479, 0.359327823, -0.236070901, -0.902859569, -0.678370893, -0.730461776, -0.0789899677),
+	CloneName = "firearmClone",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["Glock"] = {
+	Accuracy = 0.9985,
+	Damage = 17,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282788473",
+		Patrol = "rbxassetid://6282788831",
+		Walk = "rbxassetid://6282789611",
+		Reload = "rbxassetid://6282789345"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = false,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.25,
+		ReloadTime = 0.5,
+		PrimeAfterReloadTime = 0.2,
+		ReloadConstant = 0.15,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 16, Runspeed = 24},
+	ShellSize = glockRound,
+	DisplayName = "Glock",
+	MaxAmmo = 10000,
+	MagCapacity = 15,
+	Firerate = 0,
+	RoundType = "9mm",
+	Fullauto = false,
+	Boltaction = false,
+	Range = 600,
+	WeldPart = "Right Leg",
+	WeldOffset = CFrame.new(-0.555917799, -0.074184373, -0.488887012, 0.999755144, -0.0212375801, 0.00684201065, 0.00965237897, 0.135079131, -0.990795732, 0.020117132, 0.990615845, 0.1352503),
+	CloneName = "firearmClone2",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["Golden Glock"] = {
+	Accuracy = 1,
+	Damage = 200,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282788473",
+		Patrol = "rbxassetid://6282788831",
+		Walk = "rbxassetid://6282789611",
+		Reload = "rbxassetid://6282789345"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = false,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.25,
+		ReloadTime = 0.5,
+		PrimeAfterReloadTime = 0.2,
+		ReloadConstant = 0.15,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 16, Runspeed = 24},
+	ShellSize = glockRound,
+	DisplayName = "Golden Glock",
+	MaxAmmo = 10000,
+	MagCapacity = 1000,
+	Firerate = 0.035,
+	RoundType = "9mm",
+	Fullauto = true,
+	Boltaction = false,
+	Range = 1100,
+	WeldPart = "Right Leg",
+	WeldOffset = CFrame.new(-0.555917799, -0.074184373, -0.488887012, 0.999755144, -0.0212375801, 0.00684201065, 0.00965237897, 0.135079131, -0.990795732, 0.020117132, 0.990615845, 0.1352503),
+	CloneName = "firearmClone2",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["AKM"] = {
+	Accuracy = 0.9975,
+	Damage = 13,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282791569",
+		Patrol = "rbxassetid://6282791892",
+		Walk = "rbxassetid://6282793384",
+		Reload = "rbxassetid://6282793048"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = false,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.4,
+		ReloadTime = 0.64,
+		PrimeAfterReloadTime = 0.2,
+		ReloadConstant = 0.15,
+		FireConstant = 0.05,
+		HitmarkerTime = 0.2,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 16, Runspeed = 22},
+	ShellSize = standardRound,
+	DisplayName = "AKM",
+	MaxAmmo = 10000,
+	MagCapacity = 40,
+	Firerate = 0.063,
+	RoundType = "7.62",
+	Fullauto = true,
+	Boltaction = false,
+	Range = 1500,
+	WeldPart = "Torso",
+	WeldOffset = CFrame.new(-0.75999999, 1.2044369, -0.337406814, -4.46422206E-8, 2.33959963E-9, 1, 0.848048091, 0.529919326, 3.7252903E-8, -0.529919267, 0.848048151, -2.42143869E-8),
+	CloneName = "firearmClone",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+firearmStats["AWM"] = {
+	Accuracy = 0.9998,
+	Damage = 100,
+	bulletColor = BrickColor.Yellow(),
+	AnimationIds = {
+		Hold = "rbxassetid://6282790137",
+		Patrol = "rbxassetid://6282790454",
+		Walk = "rbxassetid://6282791105",
+		Reload = "rbxassetid://6282790841"
+	},
+	Controls = {
+		Reload = Enum.KeyCode.R,
+		Patrol = Enum.KeyCode.E,
+		ChangeReticle = Enum.KeyCode.Z,
+		ChangeFiremode = Enum.KeyCode.B,
+		Crouch = Enum.KeyCode.C,
+		Stand = Enum.KeyCode.X
+	},
+	Cursors = {
+		{
+			Normal = "http://www.roblox.com/asset?id=569368172",
+			Hit = "http://www.roblox.com/asset?id=569370210"
+		}
+	},
+	Reticles = {
+		{
+			Normal = "rbxassetid://2106534615",
+			Hit = "rbxassetid://2106079839"
+		}
+	},
+	hasScope = true,
+	targetFOV = 10,
+	Waittimes = {
+		MagazineRelease = 0.9,
+		ReloadTime = 1.65,
+		PrimeAfterReloadTime = 0.4,
+		ReloadConstant = 0.15,
+		FireConstant = 3,
+		HitmarkerTime = 0.5,
+		patrolShootDelay = 0.1,
+		cursorSpeed = 0.02
+	},
+	Speeds = {Walkspeed = 10, Runspeed = 20},
+	ShellSize = standardRound,
+	DisplayName = "AWM",
+	MaxAmmo = 10000,
+	MagCapacity = 5,
+	Firerate = 0,
+	RoundType = "300 Magnum",
+	Fullauto = false,
+	Boltaction = true,
+	Range = 2500,
+	WeldPart = "Torso",
+	WeldOffset = CFrame.new(-0.950000048, -0.235563189, -0.437406838, 3.66189497E-8, -2.5640869E-8, 1, -1, 2.78181318E-8, 3.7252903E-8, -1.17225099E-7, -1, -2.42143869E-8),
+	CloneName = "firearmClone",
+	IgnoreList = {
+		workspace:WaitForChild("IgnoreModel")
+	},
+	FollowCursor = followCursor
+}
+return firearmStats
