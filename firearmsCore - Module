@@ -1,0 +1,41 @@
+	--                                                           --
+	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
+	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
+	--	|       |   |   |       |   ---|   -   |      <    ___|  --
+	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
+	--	                                                         --
+	--                      by Avallex                           --
+	
+	local firearmsCore = {}
+	 
+	--[[ GAME SERVICES ]]--
+	local Players = game:GetService('Players')
+	local ReplicatedStorage = game:GetService('ReplicatedStorage')
+	
+	--[[ NETWORK ]]--
+	local NetworkFolder = Instance.new('Folder',ReplicatedStorage);NetworkFolder.Name = 'firearmsNetwork'
+	local RE,RF = Instance.new('RemoteEvent',NetworkFolder),Instance.new('RemoteFunction',NetworkFolder),Instance.new('RemoteEvent',NetworkFolder)
+	RE.Name,RF.Name = 'RE','RF'
+	
+	--[[ IGNORE MODEL ]]--
+	if not workspace:FindFirstChild('IgnoreModel') then
+		local IM = Instance.new('Folder',workspace); IM.Name = 'IgnoreModel'
+	end
+	
+	--[[ MODULES ]]--
+	local firearmHandler = require(script:WaitForChild('firearmHandler'))
+	
+	RE.OnServerEvent:connect(function(player,command,...)
+		coroutine.resume(coroutine.create(function(player,command,...)
+			if command == 'fireWeapon' then
+				firearmHandler:fireWeapon(player,...)
+			elseif command == 'crouch' then
+				
+			end
+		end),player,command,...)
+	end)
+	
+	
+	
+	
+	return firearmsCore
