@@ -1,0 +1,57 @@
+	--                                                           --
+	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
+	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
+	--	|       |   |   |       |   ---|   -   |      <    ___|  --
+	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
+	--	                                                         --
+	--                      by Avallex                           --
+	
+	--[[ RENDERING ]]--
+	function render(command,...)
+		local data = {...}
+		if command == 'renderTrail' then
+			
+			--[[ PARAMETER RETRIEVAL ]]--
+			local Attachment1 = data[1]
+			local Hitposition = data[2]
+			
+			--[[ PART CREATION ]]--
+			local Part = Instance.new('Part')
+			Part.Anchored = true
+			Part.CanCollide = false
+			Part.Transparency = 1
+			Part.CanCollide = false
+			Part.Size = Vector3.new(0.1,0.1,0.1)
+			Part.Position = Hitposition
+			local Attachment = Instance.new('Attachment',Part)
+			--
+			
+			--[[ TRACER ]]--
+			local Trail = Instance.new('Beam')
+			Trail.Attachment0 = Attachment
+			Trail.Attachment1 = Attachment1
+			Trail.LightEmission = 1
+			Trail.Width0 = .1
+			Trail.Width1 = .1
+			Trail.Texture = 'rbxassetid://2057499323'
+			Trail.TextureMode = Enum.TextureMode.Static
+			Trail.Color = ColorSequence.new(Color3.fromRGB(255,255,0),Color3.fromRGB(255,255,0))
+			Trail.Segments = 1
+			Trail.TextureSpeed = -3 --[[finalSpeed]]
+			Trail.TextureMode = Enum.TextureMode.Stretch
+			Trail.FaceCamera = true
+			Trail.Parent = Attachment1
+			Part.Parent = workspace:WaitForChild('IgnoreModel')
+			--
+			game:GetService('Debris'):AddItem(Part,.2)
+			game:GetService('Debris'):AddItem(Trail,.2)
+		end
+	end
+	
+	--[[ INPUT ]]--
+	game:GetService('ReplicatedStorage'):WaitForChild('firearmsNetwork'):WaitForChild('RE').OnClientEvent:connect(function(command,...)
+		render(command,...)
+	end)
+	script:WaitForChild('Render').Event:connect(function(command,...)
+		render(command,...)
+	end)
