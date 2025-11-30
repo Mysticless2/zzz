@@ -19,6 +19,12 @@ local NetworkFolder = ReplicatedStorage:WaitForChild("firearmsNetwork")
 local Modules = ReplicatedStorage:WaitForChild("firearmsModules")
 local RE = NetworkFolder:WaitForChild("RE")
 
+-- Trail Rendering Constants
+local TRAIL_LIFETIME = 0.2
+local TRAIL_WIDTH = 0.1
+local TRAIL_TEXTURE = "rbxassetid://2057499323"
+local TRAIL_COLOR = ColorSequence.new(Color3.fromRGB(255, 255, 0))
+
 -- Module Variables
 Client.Tool = script.Parent.Parent
 Client.Player = Players.LocalPlayer
@@ -388,6 +394,43 @@ Client.GUI.Cursor.ImageColor3 = Color3.new(1, 1, 1)
 end
 end
 
+-- Trail rendering function
+local function renderTrail(sourceAttachment, hitPosition)
+	if not sourceAttachment or not hitPosition then return end
+	
+	-- Create anchor part at hit position
+	local anchorPart = Instance.new("Part")
+	anchorPart.Anchored = true
+	anchorPart.CanCollide = false
+	anchorPart.Transparency = 1
+	anchorPart.Size = Vector3.new(0.1, 0.1, 0.1)
+	anchorPart.Position = hitPosition
+	
+	-- Create attachment on anchor part
+	local targetAttachment = Instance.new("Attachment")
+	targetAttachment.Parent = anchorPart
+	
+	-- Create beam trail
+	local trail = Instance.new("Beam")
+	trail.Attachment0 = targetAttachment
+	trail.Attachment1 = sourceAttachment
+	trail.LightEmission = 1
+	trail.Width0 = TRAIL_WIDTH
+	trail.Width1 = TRAIL_WIDTH
+	trail.Texture = TRAIL_TEXTURE
+	trail.Color = TRAIL_COLOR
+	trail.Segments = 1
+	trail.TextureSpeed = -3
+	trail.TextureMode = Enum.TextureMode.Stretch
+	trail.FaceCamera = true
+	trail.Parent = sourceAttachment
+	
+	-- Parent and cleanup
+	anchorPart.Parent = Client.IgnoreModel
+	Debris:AddItem(anchorPart, TRAIL_LIFETIME)
+	Debris:AddItem(trail, TRAIL_LIFETIME)
+end
+
 -- Main render loop setup
 local function bootFirearm()
 -- Jump detection
@@ -674,13 +717,7 @@ local flame = Client.Tool:FindFirstChild("Flame")
 if flame then
 local attachment = flame:FindFirstChild("Attachment")
 if attachment then
-local renderer = Client.Player:WaitForChild("PlayerScripts"):FindFirstChild("Renderer")
-if renderer then
-local renderEvent = renderer:FindFirstChild("Render")
-if renderEvent then
-renderEvent:Fire("renderTrail", attachment, hitPosition)
-end
-end
+renderTrail(attachment, hitPosition)
 end
 end
 
@@ -864,6 +901,13 @@ connection:Disconnect()
 end
 end
 table.clear(Client.FirearmConnections)
+end)
+
+-- Network event listener for trails from other players
+RE.OnClientEvent:Connect(function(command, ...)
+	if command == "renderTrail" then
+		renderTrail(...)
+	end
 end)
 
 return Client
