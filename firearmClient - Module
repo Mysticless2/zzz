@@ -35,23 +35,23 @@ Client.GUI = nil
 
 -- Wait for character to load
 local function waitForCharacter()
-local character = Client.Player.Character or Client.Player.CharacterAdded:Wait()
-
--- Wait for character to be parented to workspace
-while character.Parent ~= workspace do
-if Client.Player.Parent ~= Players then
-return nil, nil
-end
-task.wait()
-end
-
-local humanoid = character:WaitForChild("Humanoid", 5)
-if not humanoid then
-warn("[FirearmClient] Humanoid not found")
-return nil, nil
-end
-
-return character, humanoid
+	local character = Client.Player.Character or Client.Player.CharacterAdded:Wait()
+	
+	-- Wait for character to be parented to workspace
+	while character.Parent ~= workspace do
+		if Client.Player.Parent ~= Players then
+			return nil, nil
+		end
+		task.wait()
+	end
+	
+	local humanoid = character:WaitForChild("Humanoid", 5)
+	if not humanoid then
+		warn("[FirearmClient] Humanoid not found")
+		return nil, nil
+	end
+	
+	return character, humanoid
 end
 
 Client.Character, Client.Humanoid = waitForCharacter()

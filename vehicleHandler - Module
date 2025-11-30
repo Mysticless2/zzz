@@ -5,7 +5,9 @@
 
 local VehicleHandler = {}
 
--- Vehicle names to search for (can be extended)
+-- Vehicle names to search for
+-- This table should be populated by the game's initialization script
+-- Example: VehicleHandler.Vehicles = {"Tank", "Jeep", "Helicopter"}
 VehicleHandler.Vehicles = {}
 
 -- Helper function to search up hierarchy for a specific model name

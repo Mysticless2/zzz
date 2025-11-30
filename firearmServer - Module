@@ -87,15 +87,11 @@ local function createWeaponClone()
 		characterWeld.Parent = clonedHandle
 	end
 	
-	-- Clean up sounds from cloned handle
+	-- Clean up sounds from cloned handle (immediate cleanup)
 	for _, child in ipairs(clonedHandle:GetChildren()) do
 		if child:IsA("Sound") then
 			child:Stop()
-			task.delay(0.03, function()
-				if child and child.Parent then
-					child:Destroy()
-				end
-			end)
+			child:Destroy()
 		end
 	end
 	
