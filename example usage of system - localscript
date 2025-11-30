@@ -1,0 +1,12 @@
+	--                                                           --
+	--	 _______ ___ ___ _______ ______ _______ ______ _______   --
+	--	|   _   |   |   |   _   |      |       |   __ \    ___|  --
+	--	|       |   |   |       |   ---|   -   |      <    ___|  --
+	--	|___|___|\_____/|___|___|______|_______|___|__|_______|  --
+	--	                                                         --
+	--                      by Avallex                           --
+	
+	--[[ SERVER MODULE ]]--
+	local cModule = game:GetService('ReplicatedStorage'):WaitForChild('firearmsModules'):WaitForChild('firearmClient'):Clone()
+	cModule.Parent = script
+	require(cModule)
